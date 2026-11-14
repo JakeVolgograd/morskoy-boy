@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
 <meta name="theme-color" content="#fdfcf6">
-<meta name="game-version" content="3">
+<meta name="game-version" content="4">
 <title>Морской бой</title>
 <link rel="icon" id="favicon" href="icon.ico">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -275,6 +275,11 @@ body.stacked.playing .side.me .board{width:calc(var(--cell)*12*var(--mini,.62));
 body.stacked.playing .side.me .fleet{display:none}
 body.stacked.playing .side.me{min-width:0}
 body.stacked .status{font-size:calc(var(--cell)*.8)}
+body.stacked.playing .sheet{padding-bottom:calc(var(--cell)*.3)}
+/* во время боя страница не прокручивается и не «пружинит» */
+html.locked,html.locked body{overflow:hidden;overscroll-behavior:none;height:100%}
+html.locked .sheet{min-height:100%}
+html{overscroll-behavior-y:none}
 body.stacked h1{font-size:calc(var(--cell)*1.3)}
 
 /* карточки и заставка растут вместе с клеткой (планшеты, большие экраны) */
@@ -1054,7 +1059,9 @@ function startPlacement() {
   P.pool = [...FLEET]; P.sel = 0; P.horiz = true; P.hover = null;
   closeCard();
   modeTag();
+  if (BASE_C && C !== BASE_C) setCell(BASE_C);
   renderAll();
+  fit();
   setStatus('Расставь свои корабли', 'pen');
   updateMusic();
 }
@@ -1088,7 +1095,9 @@ function hostBegin() {
 }
 function startPlaying() {
   G.phase = 'playing'; G.busy = true;
+  if (C !== BASE_C) setCell(BASE_C);      // начинаем подгонку с исходного размера клетки
   renderAll();
+  fit();
   updateMusic();
   const who = G.myTurn ? 'Ты ходишь первым!' : (G.mode === 'ai' ? 'Первым ходит компьютер' : 'Первым ходит друг');
   setStatus('Бой! ' + who, 'red');
@@ -1546,7 +1555,11 @@ function showMenu() {
       Вокруг потопленного корабля клетки отмечаются точками. Побеждает тот, кто первым потопит весь флот.
     </div>
     <div class="upd" id="updNote">${updNoteHTML()}</div>
-    <div class="ver">версия ${GAME_VERSION}</div>`);
+    <div class="ver">версия игры ${GAME_VERSION}${appVersion() ? ' · приложение ' + appVersion() : ''}</div>`);
+}
+function appVersion() {
+  if (!isApp() || typeof AndroidApp.appVersion !== 'function') return '';
+  try { return String(AndroidApp.appVersion() || ''); } catch (e) { return ''; }
 }
 
 /* ---------- обновления по сети (только в Android-приложении) ---------- */
@@ -1563,8 +1576,14 @@ function updNoteHTML() {
   }
   if (u.state === 'apk') {
     return `<p><b>Вышло новое приложение</b></p>${notes}
-      <div class="row"><button class="btn red" data-act="getApk">Скачать</button></div>`;
+      <div class="row"><button class="btn red" data-act="getApk">Скачать и установить</button></div>`;
   }
+  if (u.state === 'apkProgress') return `${loaderSVG({ w: 90 })}<p class="muted">Скачиваем приложение… ${u.progress || 0}%</p>`;
+  if (u.state === 'apkReady') return '<p class="muted">Открываем установщик…</p><div class="row"><button class="btn small" data-act="getApk">открыть ещё раз</button></div>';
+  if (u.state === 'apkPermission') return `<p>Разреши в открывшихся настройках <b>«Установка из этого источника»</b> и вернись в игру — установка продолжится.</p>
+      <div class="row"><button class="btn small" data-act="getApk">продолжить</button></div>`;
+  if (u.state === 'apkError') return `<p class="err">Не удалось скачать приложение${u.msg ? ': ' + String(u.msg).replace(/[<>&]/g, '') : ''}</p>
+      <div class="row"><button class="btn small" data-act="getApk">ещё раз</button></div>`;
   if (u.state === 'none' && u.manual) return '<p class="muted">У тебя последняя версия ✓</p>';
   if (u.state === 'error' && u.manual) return `<p class="err">Не удалось проверить обновления</p>
       <div class="row"><button class="btn small" data-act="checkUpd">ещё раз</button></div>`;
@@ -1574,7 +1593,9 @@ function renderUpdNote() { const el = $('#updNote'); if (el) el.innerHTML = updN
 // вызывается из Android: {state:'ready'|'apk'|'none'|'error', version, notes, url, htmlReady}
 window.onAppUpdate = info => {
   const manual = !!(UPD && UPD.manual);
-  UPD = Object.assign({}, info, { manual });
+  // промежуточные состояния установки сохраняют прежние данные (ссылку, описание)
+  const keep = /^apk(Progress|Ready|Permission|Error)$/.test(info.state || '');
+  UPD = Object.assign({}, keep ? UPD : {}, info, { manual });
   renderUpdNote();
 };
 function showOver(win) {
@@ -1597,7 +1618,9 @@ function toMenu() {
   G.mode = null; G.phase = 'menu';
   G.me = new Board(); G.enemy = new Board();
   modeTag();
+  if (BASE_C && C !== BASE_C) setCell(BASE_C);
   renderAll();
+  fit();
   setStatus('Выбери режим игры', 'grey');
   showMenu();
   updateMusic();
@@ -1632,7 +1655,13 @@ const actions = {
     try { AndroidApp.checkUpdates(); } catch (e) { UPD = { state: 'error', manual: true }; renderUpdNote(); }
   },
   applyUpd: () => { try { AndroidApp.reload(); } catch (e) {} },
-  getApk: () => { if (UPD && UPD.url) try { AndroidApp.openUrl(UPD.url); } catch (e) {} },
+  getApk: () => {
+    if (!isApp()) return;
+    try {
+      if (typeof AndroidApp.installApk === 'function') { UPD = Object.assign({}, UPD, { state: 'apkProgress', progress: 0 }); renderUpdNote(); AndroidApp.installApk(); }
+      else if (UPD && UPD.url) AndroidApp.openUrl(UPD.url);   // старое приложение — через браузер
+    } catch (e) {}
+  },
   confirmMenu: toMenu,
   close: closeCard,
 };
@@ -1968,9 +1997,7 @@ let STACKED = false;
 function snap() {
   const s = $('#sheet').getBoundingClientRect();
   const miniMe = STACKED && document.body.classList.contains('playing');
-  // своё поле в бою уменьшаем ровно настолько, чтобы оба поля влезли по высоте
-  const sat = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--sat')) || 0;
-  const mini = Math.max(.5, Math.min(1, ((window.innerHeight - sat) / C - 20.2) / 11.6));
+  const mini = MINI;
   document.documentElement.style.setProperty('--mini', mini.toFixed(3));
   document.querySelectorAll('.board svg').forEach(svg => {
     if (miniMe && svg.id === 'svgMe') { svg.style.transformOrigin = '0 0'; svg.style.transform = `scale(${mini.toFixed(3)})`; return; }
@@ -1995,17 +2022,61 @@ function renderAll() {
   snap();
 }
 let lastC = 0;
+let MINI = .62, BASE_C = 0;
+const satPx = () => parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--sat')) || 0;
+function setCell(c) {
+  C = c; lastC = c;
+  document.documentElement.style.setProperty('--cell', C + 'px');
+  document.documentElement.style.setProperty('--ui', Math.max(1, Math.min(1.6, C / 30)).toFixed(3));
+  // первая прикидка размера своего поля в бою (потом fit() доведёт по факту)
+  MINI = Math.max(.42, Math.min(1, ((window.innerHeight - satPx()) / C - 20.2) / 11.6));
+}
 function layout(force) {
   const { c, stacked } = computeLayout();
-  if (c !== lastC || stacked !== STACKED || force) {
-    C = c; lastC = c; STACKED = stacked;
+  if (c !== BASE_C || stacked !== STACKED || force) {
+    BASE_C = c; STACKED = stacked;
     document.body.classList.toggle('stacked', stacked);
-    document.documentElement.style.setProperty('--cell', C + 'px');
-    document.documentElement.style.setProperty('--ui', Math.max(1, Math.min(1.6, C / 30)).toFixed(3));
+    setCell(c);
     renderAll();
   } else snap();
+  fit();
 }
 window.addEventListener('resize', () => layout(false));
+// запасные сигналы смены размера (поворот экрана, панели браузера, клавиатура)
+let relayoutT = null;
+const relayoutSoon = () => { clearTimeout(relayoutT); relayoutT = setTimeout(() => layout(false), 120); };
+if (window.visualViewport) visualViewport.addEventListener('resize', relayoutSoon);
+window.addEventListener('orientationchange', relayoutSoon);
+let lastVP = window.innerWidth + 'x' + window.innerHeight;
+setInterval(() => { const vp = window.innerWidth + 'x' + window.innerHeight; if (vp !== lastVP) { lastVP = vp; layout(false); } }, 700);
+
+// Подгонка под экран во время боя: всё должно помещаться без прокрутки.
+// Сначала уменьшаем своё (нижнее) поле, затем — если не хватает — саму клетку.
+let fitting = false;
+function overflowPx() { return document.documentElement.scrollHeight - window.innerHeight; }
+function fit() {
+  if (fitting) return;
+  fitting = true;
+  const root = document.documentElement;
+  root.classList.remove('locked');
+  const battle = G.phase === 'playing' || G.phase === 'over';
+  if (battle) {
+    for (let k = 0; k < 24; k++) {
+      const over = overflowPx();
+      if (over <= 0) break;
+      if (STACKED && MINI > .42) {
+        MINI = Math.max(.42, MINI - over / (11.6 * C) - .004);
+        snap();
+        continue;
+      }
+      if (C <= 14) break;
+      setCell(C - 1);
+      renderAll();
+    }
+    if (overflowPx() <= 1) { root.classList.add('locked'); window.scrollTo(0, 0); }
+  }
+  fitting = false;
+}
 if (window.ResizeObserver) new ResizeObserver(() => snap()).observe($('.boards'));
 
 /* =========================================================
