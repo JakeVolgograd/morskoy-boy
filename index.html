@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
 <meta name="theme-color" content="#fdfcf6">
-<meta name="game-version" content="4">
+<meta name="game-version" content="5">
 <title>Морской бой</title>
 <link rel="icon" id="favicon" href="icon.ico">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -45,7 +45,6 @@ button,input{font-family:inherit;color:inherit}
 }
 .sheet{
   position:relative;
-  max-width:calc(var(--cell) * 32);
   min-height:100vh;
   margin:0 auto;
   padding:calc(var(--cell)*.5 + var(--sat,0px)) calc(var(--cell)*2.2) calc(var(--cell)*2) calc(var(--cell)*1.2);
@@ -85,7 +84,7 @@ h1 svg{position:absolute;left:-4px;bottom:-6px;width:calc(100% + 8px);height:14p
 .boards{display:flex;justify-content:center;align-items:flex-start;gap:calc(var(--cell)*1.5);flex-wrap:wrap;position:relative;z-index:1}
 .side{display:flex;flex-direction:column;align-items:flex-start;min-width:calc(var(--cell)*12)}
 .cap{height:calc(var(--cell)*1.4);font-size:calc(var(--cell)*.95);font-weight:700;padding-left:calc(var(--cell)*1);display:flex;align-items:center;gap:8px;transition:color .3s}
-.board{position:relative;width:calc(var(--cell)*12);height:calc(var(--cell)*11.6);transition:opacity .35s, filter .35s}
+.board{position:relative;width:calc(var(--cell)*12);height:calc(var(--cell)*12 + 2px);transition:opacity .35s, filter .35s}
 .board svg{position:absolute;left:0;top:0;overflow:visible;touch-action:manipulation;user-select:none;-webkit-user-select:none}
 .board.dim{opacity:.55;filter:grayscale(.35)}
 .board.target svg{cursor:crosshair}
