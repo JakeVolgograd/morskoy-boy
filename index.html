@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
 <meta name="theme-color" content="#fdfcf6">
-<meta name="game-version" content="2">
+<meta name="game-version" content="3">
 <title>Морской бой</title>
 <link rel="icon" id="favicon" href="icon.ico">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -48,7 +48,7 @@ button,input{font-family:inherit;color:inherit}
   max-width:calc(var(--cell) * 32);
   min-height:100vh;
   margin:0 auto;
-  padding:calc(var(--cell)*.5) calc(var(--cell)*2.2) calc(var(--cell)*2) calc(var(--cell)*1.2);
+  padding:calc(var(--cell)*.5 + var(--sat,0px)) calc(var(--cell)*2.2) calc(var(--cell)*2) calc(var(--cell)*1.2);
   box-shadow:0 0 0 1px rgba(0,0,0,.06),0 18px 50px rgba(60,40,10,.35);
   overflow:hidden;
 }
@@ -264,7 +264,10 @@ h1 svg{position:absolute;left:-4px;bottom:-6px;width:calc(100% + 8px);height:14p
 
 /* Раскладка «поля друг под другом» (телефон, планшет в портрете).
    Класс body.stacked ставит JS, выбирая вариант с самыми крупными клетками. */
-body.stacked .sheet{padding:calc(var(--cell)*.3) calc(var(--cell)*.9) calc(var(--cell)*1) calc(var(--cell)*.25)}
+body.stacked .sheet{padding:calc(var(--cell)*.3 + var(--sat,0px)) calc(var(--cell)*.9) calc(var(--cell)*1) calc(var(--cell)*.25)}
+/* --sat — высота прозрачной строки состояния телефона (передаёт Android-приложение) */
+.splash-inner{padding-top:calc(16px + var(--sat,0px))}
+.overlay{padding-top:calc(16px + var(--sat,0px))}
 body.stacked .sheet::after,body.stacked .splash::after{right:calc(var(--cell)*.45)}
 body.stacked .boards{flex-direction:column;align-items:center;gap:calc(var(--cell)*.3)}
 body.stacked.playing .side.en{order:-1}
@@ -1953,7 +1956,8 @@ window.onAndroidBack = () => {
 // Два варианта: поля рядом (ПК, планшет/телефон в альбомной) или друг под другом
 // (телефон, планшет в портретной). Берём тот, где клетка крупнее.
 function computeLayout() {
-  const w = window.innerWidth, h = window.innerHeight;
+  const sat = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--sat')) || 0;
+  const w = window.innerWidth, h = window.innerHeight - sat;
   const side = Math.min((w - 30) / 30.5, (h - 10) / 19.5);
   const stack = Math.min((w - 4) / 13.3, (h - 8) / 27);
   const stacked = w < 600 || stack > side * 1.08;
@@ -1965,7 +1969,8 @@ function snap() {
   const s = $('#sheet').getBoundingClientRect();
   const miniMe = STACKED && document.body.classList.contains('playing');
   // своё поле в бою уменьшаем ровно настолько, чтобы оба поля влезли по высоте
-  const mini = Math.max(.5, Math.min(1, (window.innerHeight / C - 20.2) / 11.6));
+  const sat = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--sat')) || 0;
+  const mini = Math.max(.5, Math.min(1, ((window.innerHeight - sat) / C - 20.2) / 11.6));
   document.documentElement.style.setProperty('--mini', mini.toFixed(3));
   document.querySelectorAll('.board svg').forEach(svg => {
     if (miniMe && svg.id === 'svgMe') { svg.style.transformOrigin = '0 0'; svg.style.transform = `scale(${mini.toFixed(3)})`; return; }
