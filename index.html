@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
 <meta name="theme-color" content="#fdfcf6">
-<meta name="game-version" content="8">
+<meta name="game-version" content="9">
 <title>Морской бой</title>
 <link rel="icon" id="favicon" href="icon.ico">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -82,9 +82,9 @@ h1 svg{position:absolute;left:-4px;bottom:-6px;width:calc(100% + 8px);height:14p
 @keyframes writein{from{clip-path:inset(0 100% 0 0)}to{clip-path:inset(0 0 0 0)}}
 
 .boards{display:flex;justify-content:center;align-items:flex-start;gap:calc(var(--cell)*1.5);flex-wrap:wrap;position:relative;z-index:1}
-.side{display:flex;flex-direction:column;align-items:flex-start;min-width:calc(var(--cell)*12)}
+.side{display:flex;flex-direction:column;align-items:flex-start;min-width:calc(var(--cell)*var(--bn,12))}
 .cap{height:calc(var(--cell)*1.4);font-size:calc(var(--cell)*.95);font-weight:700;padding-left:calc(var(--cell)*1);display:flex;align-items:center;gap:8px;transition:color .3s}
-.board{position:relative;width:calc(var(--cell)*12);height:calc(var(--cell)*12 + 2px);transition:opacity .35s, filter .35s}
+.board{position:relative;width:calc(var(--cell)*var(--bn,12));height:calc(var(--cell)*var(--bn,12) + 2px);transition:opacity .35s, filter .35s}
 .board svg{position:absolute;left:0;top:0;overflow:visible;touch-action:manipulation;user-select:none;-webkit-user-select:none}
 .board.dim{opacity:.55;filter:grayscale(.35)}
 .board.target svg{cursor:crosshair}
@@ -167,7 +167,7 @@ h1 svg{position:absolute;left:-4px;bottom:-6px;width:calc(100% + 8px);height:14p
 .btn.off{opacity:.55;text-decoration:line-through;text-decoration-color:var(--red)}
 
 /* ---------- панель расстановки ---------- */
-.dock{width:calc(var(--cell)*12);min-height:calc(var(--cell)*11.6);padding-left:var(--cell);display:flex;flex-direction:column;gap:calc(var(--cell)*.35)}
+.dock{width:calc(var(--cell)*max(12, var(--bn,12)));min-height:calc(var(--cell)*var(--bn,12));padding-left:var(--cell);display:flex;flex-direction:column;gap:calc(var(--cell)*.35)}
 .dock .hint{font-size:calc(var(--cell)*.62);color:var(--pencil);line-height:1.15}
 .pool{display:flex;flex-wrap:wrap;gap:calc(var(--cell)*.3) calc(var(--cell)*.45);align-items:center;align-content:flex-start;min-height:calc(var(--cell)*4.6)}
 .pool svg{cursor:pointer;overflow:visible;border-radius:10px;transition:transform .15s, background .15s}
@@ -271,12 +271,21 @@ body.stacked .sheet::after,body.stacked .splash::after{right:calc(var(--cell)*.4
 body.stacked .boards{flex-direction:column;align-items:center;gap:calc(var(--cell)*.3)}
 body.stacked.playing .side.en{order:-1}
 /* в бою уменьшено поле того, кто сейчас НЕ ходит (класс .minified ставит JS) */
-body.stacked.playing .side.minified .board{width:calc(var(--cell)*12*var(--mini,.62));height:calc((var(--cell)*12 + 2px)*var(--mini,.62))}
+body.stacked.playing .side.minified .board{width:calc(var(--cell)*var(--bn,12)*var(--mini,.62));height:calc((var(--cell)*var(--bn,12) + 2px)*var(--mini,.62))}
 body.stacked.playing .side.minified .fleet{display:none}
 body.stacked.playing .side{min-width:0}
-body.stacked.playing .board{transition:width .4s ease,height .4s ease,opacity .35s,filter .35s}
-body.stacked.playing .board svg{transition:transform .4s ease}
 body.notrans .board,body.notrans .board svg{transition:none!important}
+/* школьные каракули карандашом на свободных местах листа (во время боя) */
+.doodles{position:absolute;left:0;top:0;z-index:0;pointer-events:none;overflow:visible}
+.doodle{fill:none;stroke:#66676e;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round;opacity:.62}
+.doodle.fillp{fill:#66676e;stroke:none}
+.doodle.red{stroke:var(--red);opacity:.72}
+.doodle-text{font-family:'Caveat',cursive;fill:#66676e;opacity:.7;font-weight:600}
+.doodle-text.red{fill:var(--red);opacity:.8}
+.doodle-text.fadein{animation:fadein .8s ease-out both}
+@keyframes fadein{from{opacity:0}}
+body.compact .doodles{grid-column:1 / -1}
+.board.flip{will-change:transform}
 
 /* Компактная альбомная раскладка (телефон лёжа): шапка и статус — колонкой слева, поля — на всю высоту */
 body.compact .sheet{display:grid;grid-template-columns:var(--sbw,160px) 1fr;grid-template-rows:auto 1fr;column-gap:calc(var(--cell)*.5);align-items:start;
@@ -308,7 +317,7 @@ html.modal,html.modal body{overflow:hidden;overscroll-behavior:none}
 
 /* ---------- панель громкости ---------- */
 .vol-panel{
-  position:fixed;z-index:120;width:min(280px,calc(100vw - 16px));
+  position:fixed;z-index:120;width:min(calc(420px*var(--ui,1)),calc(100vw - 16px));
   background-color:var(--paper);
   background-image:linear-gradient(to bottom,var(--grid) 1px,transparent 1px),linear-gradient(to right,var(--grid) 1px,transparent 1px);
   background-size:20px 20px;
@@ -318,22 +327,27 @@ html.modal,html.modal body{overflow:hidden;overscroll-behavior:none}
   font-size:calc(20px*var(--ui,1));
 }
 .vol-title{font-weight:700;font-size:1.1em;margin-bottom:4px}
-.vol-row{display:grid;grid-template-columns:5.2em 1fr 2em;align-items:center;gap:8px;margin:8px 0 2px}
+.vol-row{display:grid;grid-template-columns:5.6em 1fr 2.2em;align-items:center;gap:10px;margin:10px 0 4px;text-align:left}
 .vol-row b{text-align:right;color:var(--red);font-weight:700}
 .vol-row input[type=range]{
-  -webkit-appearance:none;appearance:none;width:100%;height:28px;background:transparent;margin:0;cursor:pointer;touch-action:none;
+  -webkit-appearance:none;appearance:none;width:100%;height:40px;background:transparent;margin:0;cursor:pointer;touch-action:none;
 }
 .vol-row input[type=range]::-webkit-slider-runnable-track{
-  height:6px;border-radius:3px;border:1.5px solid var(--ink);
+  height:12px;border-radius:7px 5px 8px 4px;border:2px solid var(--ink);
   background:linear-gradient(to right,var(--red) var(--p,50%),transparent var(--p,50%));
 }
 .vol-row input[type=range]::-webkit-slider-thumb{
-  -webkit-appearance:none;width:22px;height:22px;margin-top:-10px;border-radius:50% 45% 52% 48%;
-  background:var(--paper);border:2.5px solid var(--ink);box-shadow:1px 1px 0 var(--ink-soft);
+  -webkit-appearance:none;width:32px;height:32px;margin-top:-12px;border-radius:50% 45% 52% 48%;
+  background:var(--paper);border:3px solid var(--ink);box-shadow:2px 2px 0 var(--ink-soft);
 }
-.vol-row input[type=range]::-moz-range-track{height:6px;border-radius:3px;border:1.5px solid var(--ink);background:transparent}
-.vol-row input[type=range]::-moz-range-progress{height:6px;background:var(--red)}
-.vol-row input[type=range]::-moz-range-thumb{width:20px;height:20px;border-radius:50%;background:var(--paper);border:2.5px solid var(--ink)}
+.vol-row input[type=range]::-moz-range-track{height:12px;border-radius:6px;border:2px solid var(--ink);background:transparent}
+.vol-row input[type=range]::-moz-range-progress{height:12px;background:var(--red);border-radius:6px}
+.vol-row input[type=range]::-moz-range-thumb{width:30px;height:30px;border-radius:50%;background:var(--paper);border:3px solid var(--ink)}
+.card .menu-vol{margin-top:12px;border-top:1.5px dashed var(--ink-soft);padding-top:6px}
+.card .modes{display:flex;gap:8px;justify-content:center;align-items:center;flex-wrap:wrap;margin:8px 0 2px}
+.card .modes span{color:var(--pencil)}
+.card .modes .btn{font-size:calc(21px*var(--ui,1))}
+.btn.sel{background:var(--marker);border-width:2.5px}
 body.stacked h1{font-size:calc(var(--cell)*1.3)}
 
 /* карточки и заставка растут вместе с клеткой (планшеты, большие экраны) */
@@ -365,6 +379,7 @@ body.stacked h1{font-size:calc(var(--cell)*1.3)}
 </div>
 
 <main class="sheet paper" id="sheet">
+  <svg id="doodles" class="doodles" aria-hidden="true"></svg>
   <header class="top">
     <div class="title">
       <h1>Морской бой<svg viewBox="0 0 300 14" preserveAspectRatio="none"><path class="redpen thin draw" pathLength="1" style="--dur:.8s;--delay:.3s" d="M2 8 C 60 3, 110 12, 160 7 S 250 4, 298 9"/></svg></h1>
@@ -399,9 +414,23 @@ body.stacked h1{font-size:calc(var(--cell)*1.3)}
 /* =========================================================
    Константы и утилиты
    ========================================================= */
-const N = 10;
-const LETTERS = 'АБВГДЕЖЗИК'.split('');
-const FLEET = [4, 3, 3, 2, 2, 2, 1, 1, 1, 1];
+// размер поля и флот зависят от режима (10×10, 8×8, 6×6)
+const MODES = {
+  10: [4, 3, 3, 2, 2, 2, 1, 1, 1, 1],
+  8: [3, 2, 2, 1, 1, 1],
+  6: [3, 2, 1, 1],
+};
+let N = 10;
+let LETTERS = 'АБВГДЕЖЗИК'.split('');
+let FLEET = MODES[10];
+let BN = 12;                       // ширина поля с подписями и запасом, в клетках
+function setSize(n) {
+  n = MODES[n] ? +n : 10;
+  N = n; FLEET = MODES[n]; BN = n + 2;
+  LETTERS = 'АБВГДЕЖЗИК'.slice(0, n).split('');
+  document.documentElement.style.setProperty('--bn', BN);
+}
+try { setSize(+localStorage.getItem('morboy-size') || 10); } catch (e) { setSize(10); }
 const SVGNS = 'http://www.w3.org/2000/svg';
 let C = 32;
 
@@ -631,7 +660,7 @@ const P = { pool: [], sel: null, horiz: true, hover: null, touch: false };
 class View {
   constructor(svg, id) { this.svg = svg; this.id = id; }
   setup() {
-    const s = this.svg, W = 11 * C;
+    const s = this.svg, W = (N + 1) * C;
     s.innerHTML = '';
     s.setAttribute('width', W); s.setAttribute('height', W);
     s.setAttribute('viewBox', `0 0 ${W} ${W}`);
@@ -653,8 +682,8 @@ class View {
         transform: `rotate(${f((R() - .5) * 8)} ${C * .6} ${(r + 1.5) * C})` }, this.gFrame).textContent = r + 1;
     }
     const R = RR(this.id, 'frame');
-    stroke(this.gFrame, rect(C, C, 10 * C, 10 * C, R, 1.6), 'pen bold');
-    stroke(this.gFrame, rect(C, C, 10 * C, 10 * C, R, 1.6), 'pen thin');
+    stroke(this.gFrame, rect(C, C, N * C, N * C, R, 1.6), 'pen bold');
+    stroke(this.gFrame, rect(C, C, N * C, N * C, R, 1.6), 'pen thin');
   }
 }
 const vMe = new View($('#svgMe'), 'me');
@@ -753,7 +782,7 @@ function shake(v) {
   b.classList.remove('shake'); void b.offsetWidth; b.classList.add('shake');
 }
 function floatWord(v, r, c, text, cls) {
-  const rc = v.svg.getBoundingClientRect(), sc = rc.width / (11 * C);
+  const rc = v.svg.getBoundingClientRect(), sc = rc.width / ((N + 1) * C);
   const d = document.createElement('div');
   d.className = 'word ' + cls;
   d.textContent = text;
@@ -785,11 +814,17 @@ function animateResult(v, b, r, c, res) {
 
 /* ---------- учёт флота под полем ---------- */
 function renderFleet(svg, b, key) {
-  const d = C * .56, gap = C * .32, rows = [[4, 3, 3], [2, 2, 2, 1, 1, 1, 1]];
+  const d = C * .56, gap = C * .32;
+  // флот делим на два ряда: крупные корабли сверху, мелкие снизу
+  const total = FLEET.reduce((s, L) => s + L, 0);
+  const rows = [[], []];
+  let acc = 0;
+  FLEET.forEach(L => { (acc < total * .45 ? rows[0] : rows[1]).push(L); acc += L; });
+  const rowW = row => row.reduce((s, L) => s + L * d, 0) + Math.max(0, row.length - 1) * gap + 8;
   const left = {};
   b.sunk.forEach(s => left[s.length] = (left[s.length] || 0) + 1);
   svg.innerHTML = '';
-  const W = MODE === 'compact' ? 10 * d + 6 * gap + 8 : 11 * C, H = d * 2 + gap + 8;
+  const W = MODE === 'compact' ? Math.max(rowW(rows[0]), rowW(rows[1])) : (N + 1) * C, H = d * 2 + gap + 8;
   svg.setAttribute('width', W); svg.setAttribute('height', H);
   svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
   rows.forEach((row, ri) => {
@@ -838,7 +873,7 @@ function renderHover() {
   }
 }
 function boardPoint(v, x, y) {
-  const rc = v.svg.getBoundingClientRect(), sc = rc.width / (11 * C);
+  const rc = v.svg.getBoundingClientRect(), sc = rc.width / ((N + 1) * C);
   return { fc: (x - rc.left) / sc / C - 1, fr: (y - rc.top) / sc / C - 1, u: C * sc };
 }
 function cellFromEvent(v, e) {
@@ -951,7 +986,7 @@ function dragMove(e) {
   D.el.style.transform = `translate(${f(x - D.el.offsetWidth / 2)}px,${f(y - D.el.offsetHeight / 2)}px) rotate(-3deg)`;
   const p = boardPoint(vMe, x, y);
   let cells = null;
-  if (p.fc > -.6 && p.fc < 10.6 && p.fr > -.6 && p.fr < 10.6) {
+  if (p.fc > -.6 && p.fc < N + .6 && p.fr > -.6 && p.fr < N + .6) {
     let r, c;
     if (D.horiz) { c = Math.round(p.fc - D.L / 2); r = Math.floor(p.fr); }
     else { r = Math.round(p.fr - D.L / 2); c = Math.floor(p.fc); }
@@ -1093,8 +1128,9 @@ function updateTurnUI() {
 }
 function modeTag() {
   const t = $('#modeTag');
-  if (G.mode === 'ai') t.textContent = '— против компьютера';
-  else if (G.mode === 'host' || G.mode === 'guest') t.textContent = '— по сети' + (G.code ? ` (код ${G.code})` : '');
+  const sz = N !== 10 ? `, ${N}×${N}` : '';
+  if (G.mode === 'ai') t.textContent = '— против компьютера' + sz;
+  else if (G.mode === 'host' || G.mode === 'guest') t.textContent = '— по сети' + (G.code ? ` (код ${G.code})` : '') + sz;
   else t.textContent = '';
 }
 
@@ -1149,6 +1185,7 @@ function hostBegin() {
 }
 function startPlaying() {
   G.phase = 'playing'; G.busy = true;
+  G.doodleSeed = (Math.random() * 1e9) | 0; G.doodlesShown = false;   // новые каракули на каждый бой
   if (C !== BASE_C) setCell(BASE_C);      // начинаем подгонку с исходного размера клетки
   renderAll();
   fit();
@@ -1523,6 +1560,7 @@ function joinGo() {
 function onLinkOpen() {
   clearTimeout(linkTimer);
   sfx('win');
+  if (G.mode === 'host') send({ t: 'cfg', size: N });   // размер поля задаёт создатель игры
   startPlacement();
   setStatus('Друг на связи! Расставляй корабли', 'red');
 }
@@ -1542,6 +1580,14 @@ function onNet(m) {
     case 'busy':
       showError('В этой игре уже двое игроков.'); cleanupNet(); break;
     case 'hello': break;
+    case 'cfg':
+      if (G.mode === 'guest' && MODES[m.size] && m.size !== N && G.phase === 'placing') {
+        setSize(m.size);
+        layout(true);
+        startPlacement();
+        setStatus(`Друг выбрал поле ${N}×${N} — расставляй корабли`, 'red');
+      }
+      break;
     case 'ready':
       G.oppReady = true;
       if (G.phase === 'placing') {
@@ -1601,21 +1647,41 @@ function closeCard() {
 function showError(text) {
   showCard(`<h2>Упс…</h2><p class="err">${text}</p><div class="row"><button class="btn" data-act="menu">В меню</button></div>`);
 }
+// «один 4-палубный, два 3-палубных…» для текущего флота
+function fleetText(fleet) {
+  const cnt = {};
+  fleet.forEach(L => cnt[L] = (cnt[L] || 0) + 1);
+  const num = ['', 'один', 'два', 'три', 'четыре', 'пять'];
+  return Object.keys(cnt).map(Number).sort((a, b) => b - a)
+    .map(L => `${num[cnt[L]] || cnt[L]} ${L}-палубны${cnt[L] === 1 ? 'й' : 'х'}`).join(', ');
+}
+const shipsWord = n => n % 10 === 1 && n % 100 !== 11 ? 'корабль' : (n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 10 || n % 100 >= 20)) ? 'корабля' : 'кораблей';
 function showMenu() {
+  const sizeBtn = n => `<button class="btn small${n === N ? ' sel' : ''}" data-act="size" data-size="${n}">${n}×${n}</button>`;
   showCard(`<h2>Морской бой</h2>
     <p class="muted">на тетрадном листочке</p>
+    <div class="modes"><span>Поле:</span>${sizeBtn(10)}${sizeBtn(8)}${sizeBtn(6)}</div>
     <div class="stack">
       <button class="btn big red" data-act="ai">Играть с компьютером</button>
       <button class="btn" data-act="host">Создать игру по сети</button>
       <button class="btn" data-act="join">Присоединиться по коду</button>
     </div>
     <div class="rules">
-      <b>Правила:</b> у каждого 10 кораблей — один 4-палубный, два 3-палубных, три 2-палубных и четыре 1-палубных.
+      <b>Правила (${N}×${N}):</b> у каждого ${FLEET.length} ${shipsWord(FLEET.length)} — ${fleetText(FLEET)}.
       Корабли не касаются друг друга даже углами. Стреляем по очереди; <b>попал — стреляешь ещё</b>.
       Вокруг потопленного корабля клетки отмечаются точками. Побеждает тот, кто первым потопит весь флот.
     </div>
+    <div class="menu-vol">${volControlsHTML()}</div>
     <div class="upd" id="updNote">${updNoteHTML()}</div>
     <div class="ver">версия игры ${GAME_VERSION}${appVersion() ? ' · приложение ' + appVersion() : ''}</div>`);
+  bindVolControls($('#card'));
+}
+// смена размера поля (в меню; в сетевой игре размер задаёт создатель)
+function applySize(n) {
+  setSize(n);
+  try { localStorage.setItem('morboy-size', N); } catch (e) {}
+  G.me = new Board(); G.enemy = new Board();
+  layout(true);
 }
 function appVersion() {
   if (!isApp() || typeof AndroidApp.appVersion !== 'function') return '';
@@ -1709,6 +1775,12 @@ const actions = {
     else { btn.disabled = true; const n = $('#againNote'); if (n) n.innerHTML = `${loaderSVG({ w: 110 })}Ждём ответа друга…`; }
   },
   look: () => { closeCard(); setTimeout(addLookButton, 50); },
+  size: btn => {
+    if (G.phase !== 'menu') return;
+    applySize(+btn.dataset.size);
+    sfx('scratch');
+    showMenu();
+  },
   checkUpd: () => {
     if (!isApp()) return;
     UPD = { state: 'checking', manual: true }; renderUpdNote();
@@ -1780,11 +1852,35 @@ function updAudioBtns() {
 }
 
 /* ---------- панель громкости (кнопка «звук») ---------- */
-function volPanelHTML() {
-  const row = (id, label, v) => `<label class="vol-row"><span>${label}</span>
-      <input type="range" min="0" max="100" step="1" value="${Math.round(v * 100)}" id="${id}">
-      <b id="${id}V">${Math.round(v * 100)}</b></label>`;
-  return `<div class="vol-title">Громкость</div>${row('volMusic', 'Музыка', musicVol)}${row('volSfx', 'Эффекты', sfxVol)}`;
+// общий блок ползунков: используется и во всплывающей панели, и в главном меню
+function volControlsHTML(title = true) {
+  const row = (kind, label, v) => `<label class="vol-row"><span>${label}</span>
+      <input type="range" min="0" max="100" step="1" value="${Math.round(v * 100)}" data-vol="${kind}">
+      <b data-volv="${kind}">${Math.round(v * 100)}</b></label>`;
+  return `${title ? '<div class="vol-title">Громкость</div>' : ''}${row('music', '♪ Музыка', musicVol)}${row('sfx', 'Эффекты', sfxVol)}`;
+}
+function bindVolControls(root) {
+  const setTrack = el => el.style.setProperty('--p', el.value + '%');
+  root.querySelectorAll('input[data-vol]').forEach(el => {
+    setTrack(el);
+    const kind = el.dataset.vol;
+    el.addEventListener('input', () => {
+      const v = el.value / 100;
+      setTrack(el);
+      document.querySelectorAll(`[data-volv="${kind}"]`).forEach(b => b.textContent = el.value);
+      document.querySelectorAll(`input[data-vol="${kind}"]`).forEach(o => { if (o !== el) { o.value = el.value; setTrack(o); } });
+      audioUnlocked = true; ensureAC();
+      if (kind === 'music') {
+        musicVol = v; Music.setVolume(musicVol); updateMusic();
+        try { localStorage.setItem('morboy-music-vol', musicVol); } catch (e) {}
+      } else {
+        sfxVol = v;
+        try { localStorage.setItem('morboy-sfx-vol', sfxVol); } catch (e) {}
+      }
+      updAudioBtns();
+    });
+    if (kind === 'sfx') el.addEventListener('change', () => { audioUnlocked = true; sfx('hit'); });   // пример громкости
+  });
 }
 function toggleVolPanel(force) {
   let p = $('#volPanel');
@@ -1793,27 +1889,13 @@ function toggleVolPanel(force) {
   if (p) return;
   p = document.createElement('div');
   p.id = 'volPanel'; p.className = 'vol-panel';
-  p.innerHTML = volPanelHTML();
+  p.innerHTML = volControlsHTML();
   document.body.appendChild(p);
   const b = $('#btnSound').getBoundingClientRect();
   const w = p.offsetWidth;
   p.style.top = (b.bottom + 8) + 'px';
   p.style.left = Math.max(8, Math.min(window.innerWidth - w - 8, b.right - w)) + 'px';
-  const setTrack = el => el.style.setProperty('--p', el.value + '%');
-  const mus = $('#volMusic'), fx = $('#volSfx');
-  [mus, fx].forEach(setTrack);
-  mus.addEventListener('input', () => {
-    musicVol = mus.value / 100; setTrack(mus); $('#volMusicV').textContent = mus.value;
-    audioUnlocked = true; ensureAC();
-    Music.setVolume(musicVol); updateMusic(); updAudioBtns();
-    try { localStorage.setItem('morboy-music-vol', musicVol); } catch (e) {}
-  });
-  fx.addEventListener('input', () => {
-    sfxVol = fx.value / 100; setTrack(fx); $('#volSfxV').textContent = fx.value;
-    updAudioBtns();
-    try { localStorage.setItem('morboy-sfx-vol', sfxVol); } catch (e) {}
-  });
-  fx.addEventListener('change', () => { audioUnlocked = true; sfx('hit'); });   // пример громкости
+  bindVolControls(p);
 }
 $('#btnSound').addEventListener('click', e => { e.stopPropagation(); toggleVolPanel(); });
 document.addEventListener('pointerdown', e => {
@@ -2102,13 +2184,14 @@ function computeLayout() {
   const sat = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--sat')) || 0;
   const w = window.innerWidth, h = window.innerHeight - sat;
   const sbw = Math.round(Math.min(220, Math.max(130, w * .17)));
-  const side = Math.min((w - 30) / 30.5, (h - 10) / 19.5);
-  const stack = Math.min((w - 4) / 13.3, (h - 8) / 27);
-  const compact = Math.min((w - sbw - 10) / 25.6, (h - 16) / 13.4);   // флот — в левой колонке
+  // BN — ширина одного поля с подписями в клетках (12 для 10×10, 10 для 8×8, 8 для 6×6)
+  const side = Math.min((w - 30) / (2 * BN + 6.5), (h - 10) / (BN + 7.5));
+  const stack = Math.min((w - 4) / (BN + 1.3), (h - 8) / (BN + 15));
+  const compact = Math.min((w - sbw - 10) / (2 * BN + 1.6), (h - 16) / (BN + 1.4));   // флот — в левой колонке
   let mode = 'side', best = side;
   if (w < 600 || stack > best * 1.08) { mode = 'stack'; best = stack; }
   if (w >= 600 && h < 700 && compact > best * 1.15) { mode = 'compact'; best = compact; }
-  const c = Math.max(14, Math.min(Math.floor(best), 54));
+  const c = Math.max(14, Math.min(Math.floor(best), 64));
   return { c, mode, sbw };
 }
 let STACKED = false, MODE = 'side';
@@ -2134,18 +2217,48 @@ function miniBoardId() {
   if (!STACKED || !document.body.classList.contains('playing')) return null;
   return (G.phase === 'playing' && !G.myTurn) ? 'svgEn' : 'svgMe';
 }
-let snapAgainT = null;
-function snap() {
-  const s = $('#sheet').getBoundingClientRect();
-  const miniId = miniBoardId();
-  const mini = MINI;
-  document.documentElement.style.setProperty('--mini', mini.toFixed(3));
+let lastMiniId = null, ANIM = false, animT = null;
+function applyMini(miniId) {
+  document.documentElement.style.setProperty('--mini', MINI.toFixed(3));
   $('#sideMe').classList.toggle('minified', miniId === 'svgMe');
   $('#sideEn').classList.toggle('minified', miniId === 'svgEn');
-  // после плавной смены размеров ещё раз привязываем крупное поле к клеткам тетради
-  clearTimeout(snapAgainT);
-  if (miniId) snapAgainT = setTimeout(() => snapOnly(), 480);
-  snapOnly(miniId, mini, s);
+}
+function snap() {
+  if (ANIM) return;                                  // во время анимации привяжем в конце
+  const miniId = miniBoardId();
+  if (miniId && lastMiniId && miniId !== lastMiniId) { swapAnimated(miniId); return; }
+  lastMiniId = miniId;
+  applyMini(miniId);
+  snapOnly(miniId, MINI);
+}
+// Плавная смена крупного поля (FLIP): размеры меняются сразу, а видимое движение — только transform
+function swapAnimated(miniId) {
+  const boards = [$('#boardEn'), $('#boardMe')];
+  const first = boards.map(b => b.getBoundingClientRect());
+  lastMiniId = miniId;
+  applyMini(miniId);
+  snapOnly(miniId, MINI);
+  const last = boards.map(b => b.getBoundingClientRect());
+  ANIM = true;
+  boards.forEach((b, i) => {
+    const a = first[i], z = last[i];
+    if (!a.width || !z.width) return;
+    b.classList.add('flip');
+    b.style.transition = 'none';
+    b.style.transformOrigin = '0 0';
+    b.style.transform = `translate(${f(a.left - z.left)}px,${f(a.top - z.top)}px) scale(${(a.width / z.width).toFixed(4)})`;
+  });
+  void document.body.offsetWidth;
+  boards.forEach(b => {
+    b.style.transition = 'transform .45s cubic-bezier(.22,.8,.25,1), opacity .35s, filter .35s';
+    b.style.transform = '';
+  });
+  clearTimeout(animT);
+  animT = setTimeout(() => {
+    boards.forEach(b => { b.style.transition = ''; b.style.transformOrigin = ''; b.classList.remove('flip'); });
+    ANIM = false;
+    snap();
+  }, 480);
 }
 function snapOnly(miniId, mini, s) {
   if (miniId === undefined) { miniId = miniBoardId(); mini = MINI; }
@@ -2165,7 +2278,7 @@ function renderAll() {
   renderBoard(vMe, G.me, true, false);
   renderBoard(vEn, G.enemy, false, G.phase === 'over');
   if (G.phase === 'menu') {
-    const t = mk('text', { x: 6 * C, y: 6.2 * C, 'text-anchor': 'middle', class: 'label', 'font-size': C * .8, fill: '#777', opacity: .6 }, vEn.gShips);
+    const t = mk('text', { x: (N / 2 + 1) * C, y: (N / 2 + 1.2) * C, 'text-anchor': 'middle', class: 'label', 'font-size': C * .8, fill: '#777', opacity: .6 }, vEn.gShips);
     t.textContent = 'здесь будет противник';
   }
   renderFleets();
@@ -2173,6 +2286,188 @@ function renderAll() {
   updateTurnUI();
   snap();
 }
+/* =========================================================
+   Школьные каракули карандашом (каждый бой — свои)
+   ========================================================= */
+const DOODLE_TEXTS = [
+  'Домашка: упр. 247, 248', 'не забыть сменку!!', '2 + 2 = 4', 'x² − 4 = 0  →  x = ±2', 'контрольная в пятницу :(',
+  'скоро каникулы!!!', 'тут был Петя', 'МОРСКОЙ ФЛОТ — СИЛА!', 'до звонка 5 минут', 'дневник на подпись',
+  'a² + b² = c²', 'ПОБЕДА БУДЕТ ЗА НАМИ!', 'кто прочитал — тот юнга', 'π ≈ 3,14', 'Вася + ? = ♥', 'не списывать!',
+];
+// рисунки в квадрате s×s; P(x, y) — точка в долях квадрата
+const DOODLES = {
+  sun(g, s, R, A) {
+    const P = (x, y) => [x * s, y * s];
+    stroke(g, blob(...P(.5, .5), s * .2, R, 1.08, .08), 'doodle', A());
+    let d = '';
+    for (let k = 0; k < 10; k++) { const a = k / 10 * Math.PI * 2; d += line(...P(.5 + Math.cos(a) * .28, .5 + Math.sin(a) * .28), ...P(.5 + Math.cos(a) * .44, .5 + Math.sin(a) * .44), R, .6, 0); }
+    stroke(g, d, 'doodle', A());
+  },
+  smiley(g, s, R, A) {
+    const P = (x, y) => [x * s, y * s];
+    stroke(g, blob(...P(.5, .5), s * .38, R, 1.06, .06), 'doodle', A());
+    mk('path', { d: blob(...P(.37, .42), s * .04, R) + 'Z', class: 'doodle fillp' }, g);
+    mk('path', { d: blob(...P(.63, .42), s * .04, R) + 'Z', class: 'doodle fillp' }, g);
+    stroke(g, smooth([P(.32, .6), P(.42, .7), P(.58, .7), P(.68, .6)]), 'doodle', A());
+  },
+  cat(g, s, R, A) {
+    const P = (x, y) => [x * s, y * s];
+    stroke(g, blob(...P(.5, .6), s * .28, R, 1.05, .07), 'doodle', A());
+    stroke(g, smooth([P(.28, .45), P(.3, .2), P(.44, .36)]) + smooth([P(.56, .36), P(.7, .2), P(.72, .45)]), 'doodle', A());
+    mk('path', { d: blob(...P(.41, .55), s * .03, R) + 'Z', class: 'doodle fillp' }, g);
+    mk('path', { d: blob(...P(.59, .55), s * .03, R) + 'Z', class: 'doodle fillp' }, g);
+    stroke(g, line(...P(.2, .62), ...P(.4, .66), R, .3, 0) + line(...P(.2, .72), ...P(.4, .7), R, .3, 0)
+      + line(...P(.6, .66), ...P(.8, .62), R, .3, 0) + line(...P(.6, .7), ...P(.8, .72), R, .3, 0)
+      + smooth([P(.45, .68), P(.5, .72), P(.55, .68)]), 'doodle', A());
+  },
+  house(g, s, R, A) {
+    const P = (x, y) => [x * s, y * s];
+    stroke(g, rect(...P(.2, .48), .6 * s, .42 * s, R, .8), 'doodle', A());
+    stroke(g, line(...P(.12, .5), ...P(.5, .14), R, .8, .03) + line(...P(.5, .14), ...P(.88, .5), R, .8, .03), 'doodle', A());
+    stroke(g, rect(...P(.44, .66), .14 * s, .24 * s, R, .5) + rect(...P(.25, .56), .12 * s, .12 * s, R, .5), 'doodle', A());
+    stroke(g, rect(...P(.65, .2), .08 * s, .16 * s, R, .4), 'doodle', A());
+    stroke(g, blob(...P(.72, .08), s * .05, R, 1.6, .2), 'doodle', A());
+  },
+  flower(g, s, R, A) {
+    const P = (x, y) => [x * s, y * s];
+    stroke(g, smooth([P(.5, .95), P(.47, .75), P(.52, .55), P(.5, .42)]), 'doodle', A());
+    stroke(g, smooth([P(.49, .75), P(.33, .66), P(.3, .72), P(.49, .78)]), 'doodle', A());
+    for (let k = 0; k < 6; k++) { const a = k / 6 * Math.PI * 2; stroke(g, blob(...P(.5 + Math.cos(a) * .14, .3 + Math.sin(a) * .14), s * .09, R, 1.05, .1), 'doodle', A()); }
+    stroke(g, blob(...P(.5, .3), s * .06, R, 1.5, .1), 'doodle', A());
+  },
+  star(g, s, R, A) {
+    const pts = [];
+    for (let k = 0; k <= 10; k++) { const a = -Math.PI / 2 + k * Math.PI / 5, r = (k % 2 ? .19 : .44) * s; pts.push([s * .5 + Math.cos(a) * r, s * .52 + Math.sin(a) * r]); }
+    let d = ''; for (let k = 0; k < 10; k++) d += line(pts[k][0], pts[k][1], pts[k + 1][0], pts[k + 1][1], R, .6, .05);
+    stroke(g, d, 'doodle', A());
+  },
+  heart(g, s, R, A) {
+    const P = (x, y) => [x * s, y * s];
+    stroke(g, smooth([P(.5, .85), P(.2, .55), P(.16, .32), P(.32, .2), P(.5, .34), P(.68, .2), P(.84, .32), P(.8, .55), P(.5, .85)]), 'doodle red', A());
+  },
+  stickman(g, s, R, A) {
+    const P = (x, y) => [x * s, y * s];
+    stroke(g, blob(...P(.5, .18), s * .1, R, 1.05, .06), 'doodle', A());
+    stroke(g, line(...P(.5, .28), ...P(.5, .6), R, .5, 0) + line(...P(.28, .36), ...P(.5, .42), R, .5, 0) + line(...P(.5, .42), ...P(.74, .3), R, .5, 0)
+      + line(...P(.5, .6), ...P(.34, .9), R, .5, 0) + line(...P(.5, .6), ...P(.66, .9), R, .5, 0), 'doodle', A());
+    stroke(g, line(...P(.74, .3), ...P(.8, .1), R, .4, 0) + smooth([P(.8, .1), P(.92, .14), P(.8, .2)]), 'doodle red', A());   // флажок
+  },
+  rocket(g, s, R, A) {
+    const P = (x, y) => [x * s, y * s];
+    stroke(g, smooth([P(.5, .06), P(.64, .3), P(.62, .66), P(.38, .66), P(.36, .3), P(.5, .06)]), 'doodle', A());
+    stroke(g, blob(...P(.5, .34), s * .07, R, 1.05, .05), 'doodle', A());
+    stroke(g, smooth([P(.38, .52), P(.24, .7), P(.38, .66)]) + smooth([P(.62, .52), P(.76, .7), P(.62, .66)]), 'doodle', A());
+    stroke(g, line(...P(.42, .7), ...P(.46, .86), R, .4, 0) + line(...P(.5, .7), ...P(.5, .94), R, .4, 0) + line(...P(.58, .7), ...P(.54, .86), R, .4, 0), 'doodle red', A());
+  },
+  fish(g, s, R, A) {
+    const P = (x, y) => [x * s, y * s];
+    stroke(g, smooth([P(.2, .5), P(.4, .32), P(.62, .36), P(.72, .5), P(.62, .64), P(.4, .68), P(.2, .5)]), 'doodle', A());
+    stroke(g, line(...P(.72, .5), ...P(.9, .36), R, .4, 0) + line(...P(.9, .36), ...P(.88, .64), R, .4, 0) + line(...P(.88, .64), ...P(.72, .5), R, .4, 0), 'doodle', A());
+    mk('path', { d: blob(...P(.3, .47), s * .025, R) + 'Z', class: 'doodle fillp' }, g);
+    stroke(g, blob(...P(.12, .3), s * .04, R) + blob(...P(.08, .16), s * .03, R), 'doodle', A());
+  },
+  sailboat(g, s, R, A) {
+    const P = (x, y) => [x * s, y * s];
+    stroke(g, smooth([P(.14, .66), P(.3, .82), P(.7, .82), P(.88, .66)]) + line(...P(.14, .66), ...P(.88, .66), R, .5, 0), 'doodle', A());
+    stroke(g, line(...P(.5, .66), ...P(.5, .1), R, .4, 0) + line(...P(.5, .12), ...P(.82, .58), R, .5, 0) + line(...P(.82, .58), ...P(.5, .58), R, .4, 0), 'doodle', A());
+    let w = `M${f(.05 * s)} ${f(.92 * s)}`; for (let k = 0; k < 5; k++) w += ` q${f(.09 * s)} ${f(-.06 * s)} ${f(.18 * s)} 0`;
+    stroke(g, w, 'doodle', A());
+  },
+  cloud(g, s, R, A) {
+    const P = (x, y) => [x * s, y * s];
+    stroke(g, smooth([P(.18, .62), P(.14, .48), P(.3, .4), P(.38, .28), P(.56, .26), P(.66, .38), P(.82, .4), P(.88, .54), P(.78, .64), P(.18, .62)]), 'doodle', A());
+    let d = ''; for (let k = 0; k < 5; k++) d += line(...P(.28 + k * .12, .72), ...P(.24 + k * .12, .86), R, .3, 0);
+    stroke(g, d, 'doodle', A());
+  },
+  spiral(g, s, R, A) {
+    const pts = [];
+    for (let k = 0; k < 40; k++) { const a = k * .45, r = s * (.03 + k * .011); pts.push([s * .5 + Math.cos(a) * r, s * .5 + Math.sin(a) * r]); }
+    stroke(g, smooth(pts), 'doodle', A());
+  },
+  cube(g, s, R, A) {
+    const P = (x, y) => [x * s, y * s];
+    stroke(g, rect(...P(.15, .35), .45 * s, .45 * s, R, .5), 'doodle', A());
+    stroke(g, rect(...P(.38, .15), .45 * s, .45 * s, R, .5), 'doodle', A());
+    stroke(g, line(...P(.15, .35), ...P(.38, .15), R, .3, 0) + line(...P(.6, .35), ...P(.83, .15), R, .3, 0)
+      + line(...P(.15, .8), ...P(.38, .6), R, .3, 0) + line(...P(.6, .8), ...P(.83, .6), R, .3, 0), 'doodle', A());
+  },
+  tictactoe(g, s, R, A) {
+    const P = (x, y) => [x * s, y * s];
+    stroke(g, line(...P(.38, .1), ...P(.36, .9), R, .6, .04) + line(...P(.64, .1), ...P(.62, .9), R, .6, .04)
+      + line(...P(.1, .37), ...P(.9, .36), R, .6, .04) + line(...P(.1, .63), ...P(.9, .62), R, .6, .04), 'doodle', A());
+    const X = (cx, cy) => line(...P(cx - .08, cy - .08), ...P(cx + .08, cy + .08), R, .3, 0) + line(...P(cx + .08, cy - .08), ...P(cx - .08, cy + .08), R, .3, 0);
+    stroke(g, X(.23, .23) + X(.5, .5) + X(.77, .77), 'doodle', A());
+    stroke(g, blob(...P(.77, .23), s * .08, R) + blob(...P(.23, .77), s * .08, R), 'doodle', A());
+    stroke(g, line(...P(.12, .12), ...P(.88, .88), R, .5, .05), 'doodle red', A());
+  },
+  anchor(g, s, R, A) {
+    const P = (x, y) => [x * s, y * s];
+    stroke(g, blob(...P(.5, .14), s * .07, R, 1.05, .05), 'doodle', A());
+    stroke(g, line(...P(.5, .21), ...P(.5, .86), R, .4, 0) + line(...P(.32, .32), ...P(.68, .32), R, .4, 0), 'doodle', A());
+    stroke(g, smooth([P(.18, .6), P(.26, .82), P(.5, .88), P(.74, .82), P(.82, .6)]), 'doodle', A());
+    stroke(g, line(...P(.18, .6), ...P(.12, .7), R, .3, 0) + line(...P(.82, .6), ...P(.88, .7), R, .3, 0), 'doodle', A());
+  },
+  grade(g, s, R, A) {           // «пятёрка» от учителя
+    const P = (x, y) => [x * s, y * s];
+    stroke(g, blob(...P(.5, .5), s * .36, R, 1.12, .08), 'doodle red', A());
+    const t = mk('text', { x: s * .5, y: s * .66, 'text-anchor': 'middle', 'font-size': s * .5, class: 'doodle-text red' }, g);
+    t.textContent = '5';
+  },
+};
+function renderDoodles() {
+  const svg = $('#doodles');
+  if (!svg) return;
+  svg.innerHTML = '';
+  if (!(G.phase === 'playing' || G.phase === 'over') || !G.doodleSeed) return;
+  const sh = $('#sheet').getBoundingClientRect();
+  const W = sh.width, H = sh.height;
+  svg.setAttribute('width', W); svg.setAttribute('height', H);
+  svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+  const pad = C * .3;
+  // запретные зоны: шапка, статус, поля, флот в колонке, поля «Готов» — в координатах листа
+  const ex = [];
+  ['.title', '.tools', '#status > span', '#sideMe', '#sideEn', '#sideFleets'].forEach(sel => {
+    const el = $(sel);
+    if (!el || !el.offsetParent) return;
+    const r = el.getBoundingClientRect();
+    if (!r.width || !r.height) return;
+    // поле в бою может стать крупнее (смена хода на телефоне) — берём запас по его полному размеру
+    const grow = (sel === '#sideMe' || sel === '#sideEn') && STACKED ? Math.max(0, BN * C - r.width) : 0;
+    ex.push({ x: r.left - sh.left - pad - grow / 2, y: r.top - sh.top - pad, w: r.width + 2 * pad + grow, h: r.height + 2 * pad + grow });
+  });
+  const R = rng(G.doodleSeed);
+  const anim = !G.doodlesShown;
+  G.doodlesShown = true;
+  let delay = .3;
+  const A = () => anim ? { delay: (delay += .12), dur: .5 } : null;
+  const placed = [];
+  const fits = (x, y, w, h) => x >= 8 && y >= 8 && x + w <= W - C * 1.3 && y + h <= H - 8 &&
+    !ex.concat(placed).some(r => x < r.x + r.w && x + w > r.x && y < r.y + r.h && y + h > r.y);
+  const shuffle = arr => { const a = arr.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(R() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+  const kinds = shuffle(Object.keys(DOODLES)), texts = shuffle(DOODLE_TEXTS).slice(0, 3);
+  const items = [];
+  for (let i = 0; i < 9; i++) items.push(i % 3 === 1 && texts.length ? { text: texts.pop() } : { kind: kinds[i] });
+  items.forEach(it => {
+    let w, h, fs = 0;
+    if (it.text) { fs = C * (.62 + R() * .22); w = it.text.length * fs * .46; h = fs * 1.3; }
+    else { w = h = C * (2.1 + R() * 1.4); }
+    for (let t = 0; t < 70; t++) {
+      const x = R() * (W - w), y = R() * (H - h);
+      if (!fits(x, y, w, h)) continue;
+      placed.push({ x: x - 6, y: y - 6, w: w + 12, h: h + 12 });
+      const rot = (R() - .5) * (it.text ? 14 : 24);
+      const g = mk('g', { transform: `translate(${f(x)} ${f(y)}) rotate(${f(rot)} ${f(w / 2)} ${f(h / 2)})` }, svg);
+      if (it.text) {
+        const el = mk('text', { x: 0, y: fs, 'font-size': fs, class: 'doodle-text' + (anim ? ' fadein' : '') }, g);
+        el.textContent = it.text;
+        if (anim) el.style.animationDelay = (delay += .15) + 's';
+        if (R() < .5) stroke(g, line(0, fs * 1.18, w * .9, fs * 1.12, R, .8, 0), 'doodle', A());   // подчёркнуто
+      } else DOODLES[it.kind](g, w, R, A);
+      break;
+    }
+  });
+}
+
 let lastC = 0;
 let MINI = .62, BASE_C = 0;
 const satPx = () => parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--sat')) || 0;
@@ -2181,7 +2476,7 @@ function setCell(c) {
   document.documentElement.style.setProperty('--cell', C + 'px');
   document.documentElement.style.setProperty('--ui', Math.max(1, Math.min(1.6, C / 30)).toFixed(3));
   // первая прикидка размера своего поля в бою (потом fit() доведёт по факту)
-  MINI = Math.max(.42, Math.min(1, ((window.innerHeight - satPx()) / C - 20.2) / 11.6));
+  MINI = Math.max(.42, Math.min(1, ((window.innerHeight - satPx()) / C - (BN + 8.2)) / (BN - .4)));
 }
 function layout(force) {
   const { c, mode, sbw } = computeLayout();
@@ -2221,7 +2516,7 @@ function fit() {
       const over = overflowPx();
       if (over <= 0) break;
       if (STACKED && MINI > .42) {
-        MINI = Math.max(.42, MINI - over / (11.6 * C) - .004);
+        MINI = Math.max(.42, MINI - over / ((BN - .4) * C) - .004);
         snap();
         continue;
       }
@@ -2234,6 +2529,7 @@ function fit() {
   void document.body.offsetWidth;
   document.body.classList.remove('notrans');
   fitting = false;
+  renderDoodles();
 }
 if (window.ResizeObserver) new ResizeObserver(() => snap()).observe($('.boards'));
 
