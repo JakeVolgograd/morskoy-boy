@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
 <meta name="theme-color" content="#fdfcf6">
-<meta name="game-version" content="5">
+<meta name="game-version" content="6">
 <title>Морской бой</title>
 <link rel="icon" id="favicon" href="icon.ico">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -270,9 +270,31 @@ body.stacked .sheet{padding:calc(var(--cell)*.3 + var(--sat,0px)) calc(var(--cel
 body.stacked .sheet::after,body.stacked .splash::after{right:calc(var(--cell)*.45)}
 body.stacked .boards{flex-direction:column;align-items:center;gap:calc(var(--cell)*.3)}
 body.stacked.playing .side.en{order:-1}
-body.stacked.playing .side.me .board{width:calc(var(--cell)*12*var(--mini,.62));height:calc(var(--cell)*11.6*var(--mini,.62))}
-body.stacked.playing .side.me .fleet{display:none}
-body.stacked.playing .side.me{min-width:0}
+/* в бою уменьшено поле того, кто сейчас НЕ ходит (класс .minified ставит JS) */
+body.stacked.playing .side.minified .board{width:calc(var(--cell)*12*var(--mini,.62));height:calc((var(--cell)*12 + 2px)*var(--mini,.62))}
+body.stacked.playing .side.minified .fleet{display:none}
+body.stacked.playing .side{min-width:0}
+body.stacked.playing .board{transition:width .4s ease,height .4s ease,opacity .35s,filter .35s}
+body.stacked.playing .board svg{transition:transform .4s ease}
+body.notrans .board,body.notrans .board svg{transition:none!important}
+
+/* Компактная альбомная раскладка (телефон лёжа): шапка и статус — колонкой слева, поля — на всю высоту */
+body.compact .sheet{display:grid;grid-template-columns:var(--sbw,160px) 1fr;grid-template-rows:auto 1fr;column-gap:calc(var(--cell)*.5);align-items:start;
+  padding:calc(var(--cell)*.3 + var(--sat,0px)) calc(var(--cell)*1.2) calc(var(--cell)*.3) calc(var(--cell)*.4)}
+body.compact header.top{grid-column:1;grid-row:1;flex-direction:column;align-items:flex-start;gap:6px}
+body.compact .title{flex-direction:column;align-items:flex-start;gap:2px}
+body.compact h1{font-size:calc(var(--cell)*1.05)}
+body.compact .mode-tag{font-size:calc(var(--cell)*.55)}
+body.compact .tools{flex-direction:column;align-items:stretch;gap:5px}
+body.compact .tools .btn{font-size:calc(var(--cell)*.55)}
+body.compact .status{grid-column:1;grid-row:2;height:auto;justify-content:flex-start;text-align:left;font-size:calc(var(--cell)*.68);line-height:1.15;padding-top:10px}
+body.compact .sheet{grid-template-rows:auto auto 1fr}
+body.compact .boards{grid-column:2;grid-row:1 / span 3;flex-wrap:nowrap;gap:calc(var(--cell)*.5);justify-content:center}
+.side-fleets{display:none}
+body.compact .side-fleets{display:block;grid-column:1;grid-row:3;align-self:start;padding-top:6px}
+body.compact .side-fleets .fleet{width:100%;height:auto;margin:2px 0 8px}
+.side-fleets .lbl{font-size:calc(var(--cell)*.55);color:var(--pencil)}
+body.compact .cap{height:calc(var(--cell)*1);font-size:calc(var(--cell)*.75)}
 body.stacked .status{font-size:calc(var(--cell)*.8)}
 body.stacked.playing .sheet{padding-bottom:calc(var(--cell)*.3)}
 /* во время боя страница не прокручивается и не «пружинит» */
@@ -735,7 +757,7 @@ function renderFleet(svg, b, key) {
   const left = {};
   b.sunk.forEach(s => left[s.length] = (left[s.length] || 0) + 1);
   svg.innerHTML = '';
-  const W = 11 * C, H = d * 2 + gap + 8;
+  const W = MODE === 'compact' ? 10 * d + 6 * gap + 8 : 11 * C, H = d * 2 + gap + 8;
   svg.setAttribute('width', W); svg.setAttribute('height', H);
   svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
   rows.forEach((row, ri) => {
@@ -1035,6 +1057,7 @@ function updateTurnUI() {
     else setStatus(G.mode === 'ai' ? 'Компьютер целится…' : 'Ход друга… держись!', 'grey');
   }
   renderHover();
+  if (STACKED && $('#sideMe').classList.contains('minified') !== (miniBoardId() === 'svgMe')) snap();   // поменялся ход — меняем крупное поле
 }
 function modeTag() {
   const t = $('#modeTag');
@@ -1983,23 +2006,61 @@ window.onAndroidBack = () => {
    ========================================================= */
 // Два варианта: поля рядом (ПК, планшет/телефон в альбомной) или друг под другом
 // (телефон, планшет в портретной). Берём тот, где клетка крупнее.
+// Третий вариант — «компактный» (телефон лёжа): шапка колонкой слева, поля рядом на всю высоту.
 function computeLayout() {
   const sat = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--sat')) || 0;
   const w = window.innerWidth, h = window.innerHeight - sat;
+  const sbw = Math.round(Math.min(220, Math.max(130, w * .17)));
   const side = Math.min((w - 30) / 30.5, (h - 10) / 19.5);
   const stack = Math.min((w - 4) / 13.3, (h - 8) / 27);
-  const stacked = w < 600 || stack > side * 1.08;
-  const c = Math.max(16, Math.min(Math.floor(stacked ? stack : side), 54));
-  return { c, stacked };
+  const compact = Math.min((w - sbw - 10) / 25.6, (h - 16) / 13.4);   // флот — в левой колонке
+  let mode = 'side', best = side;
+  if (w < 600 || stack > best * 1.08) { mode = 'stack'; best = stack; }
+  if (w >= 600 && h < 700 && compact > best * 1.15) { mode = 'compact'; best = compact; }
+  const c = Math.max(14, Math.min(Math.floor(best), 54));
+  return { c, mode, sbw };
 }
-let STACKED = false;
+let STACKED = false, MODE = 'side';
+// в компактном режиме счётчики флота переезжают в левую колонку, иначе — под свои поля
+function placeFleets(compact) {
+  let box = $('#sideFleets');
+  if (compact && !box) {
+    box = document.createElement('div');
+    box.className = 'side-fleets'; box.id = 'sideFleets';
+    box.innerHTML = '<div class="lbl" id="lblFleetEn">Флот противника</div><div id="slotEn"></div><div class="lbl">Мой флот</div><div id="slotMe"></div>';
+    $('#sheet').appendChild(box);
+  }
+  if (compact) {
+    $('#slotEn').appendChild($('#fleetEn'));
+    $('#slotMe').appendChild($('#fleetMe'));
+  } else {
+    $('#boardMe').after($('#fleetMe'));
+    $('#boardEn').after($('#fleetEn'));
+  }
+}
+// какое поле сейчас уменьшено: в бою (поля друг под другом) крупное — у того, чей ход
+function miniBoardId() {
+  if (!STACKED || !document.body.classList.contains('playing')) return null;
+  return (G.phase === 'playing' && !G.myTurn) ? 'svgEn' : 'svgMe';
+}
+let snapAgainT = null;
 function snap() {
   const s = $('#sheet').getBoundingClientRect();
-  const miniMe = STACKED && document.body.classList.contains('playing');
+  const miniId = miniBoardId();
   const mini = MINI;
   document.documentElement.style.setProperty('--mini', mini.toFixed(3));
+  $('#sideMe').classList.toggle('minified', miniId === 'svgMe');
+  $('#sideEn').classList.toggle('minified', miniId === 'svgEn');
+  // после плавной смены размеров ещё раз привязываем крупное поле к клеткам тетради
+  clearTimeout(snapAgainT);
+  if (miniId) snapAgainT = setTimeout(snapOnly, 450);
+  snapOnly(miniId, mini, s);
+}
+function snapOnly(miniId, mini, s) {
+  if (miniId === undefined) { miniId = miniBoardId(); mini = MINI; }
+  s = s || $('#sheet').getBoundingClientRect();
   document.querySelectorAll('.board svg').forEach(svg => {
-    if (miniMe && svg.id === 'svgMe') { svg.style.transformOrigin = '0 0'; svg.style.transform = `scale(${mini.toFixed(3)})`; return; }
+    if (miniId === svg.id) { svg.style.transformOrigin = '0 0'; svg.style.transform = `scale(${mini.toFixed(3)})`; return; }
     svg.style.transformOrigin = '';
     svg.style.transform = 'none';
     const r = svg.getBoundingClientRect();
@@ -2031,10 +2092,13 @@ function setCell(c) {
   MINI = Math.max(.42, Math.min(1, ((window.innerHeight - satPx()) / C - 20.2) / 11.6));
 }
 function layout(force) {
-  const { c, stacked } = computeLayout();
-  if (c !== BASE_C || stacked !== STACKED || force) {
-    BASE_C = c; STACKED = stacked;
-    document.body.classList.toggle('stacked', stacked);
+  const { c, mode, sbw } = computeLayout();
+  if (c !== BASE_C || mode !== MODE || force) {
+    BASE_C = c; MODE = mode; STACKED = mode === 'stack';
+    document.body.classList.toggle('stacked', mode === 'stack');
+    document.body.classList.toggle('compact', mode === 'compact');
+    document.documentElement.style.setProperty('--sbw', sbw + 'px');
+    placeFleets(mode === 'compact');
     setCell(c);
     renderAll();
   } else snap();
@@ -2057,6 +2121,7 @@ function fit() {
   if (fitting) return;
   fitting = true;
   const root = document.documentElement;
+  document.body.classList.add('notrans');          // мерим уже установившиеся размеры, без анимации
   root.classList.remove('locked');
   const battle = G.phase === 'playing' || G.phase === 'over';
   if (battle) {
@@ -2074,6 +2139,8 @@ function fit() {
     }
     if (overflowPx() <= 1) { root.classList.add('locked'); window.scrollTo(0, 0); }
   }
+  void document.body.offsetWidth;
+  document.body.classList.remove('notrans');
   fitting = false;
 }
 if (window.ResizeObserver) new ResizeObserver(() => snap()).observe($('.boards'));
