@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
 <meta name="theme-color" content="#fdfcf6">
-<meta name="game-version" content="11">
+<meta name="game-version" content="16">
 <title>Морской бой</title>
 <link rel="icon" id="favicon" href="icon.ico">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -278,10 +278,13 @@ body.notrans .board,body.notrans .board svg{transition:none!important}
 /* школьные каракули карандашом на свободных местах листа (во время боя) */
 .doodles{position:absolute;left:0;top:0;z-index:0;pointer-events:none;overflow:visible}
 /* цветные карандаши; текстуру грифеля даёт SVG-фильтр #pencilTex */
-.doodle{fill:none;stroke:var(--dc,#5f6068);stroke-width:2.1;stroke-linecap:round;stroke-linejoin:round;opacity:.85}
-.doodle.hatch{stroke-width:1.2;opacity:.6}
+.doodle{fill:none;stroke:var(--dc,#5f6068);stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round;opacity:.8}
+.doodle.hatch{stroke-width:1.3;opacity:.65}
 .c-gr{--dc:#5f6068}.c-rd{--dc:#c8493e}.c-bl{--dc:#3a62b4}.c-gn{--dc:#4d8a3a}.c-or{--dc:#df8a2c}
 .c-ye{--dc:#e2b92b}.c-pu{--dc:#7d50a6}.c-br{--dc:#8a5a33}.c-sk{--dc:#6aa6d8}
+/* простой карандаш: все цвета внутри рисунка — графит (штриховка посветлее) */
+.mono .doodle,.mono .doodle-text{--dc:#5f6068}
+.mono .doodle.hatch{--dc:#8a8b92}
 .doodle-text{font-family:'Caveat',cursive;fill:var(--dc,#5f6068);opacity:.85;font-weight:600}
 .doodle-text.fadein{animation:fadein .8s ease-out both}
 @keyframes fadein{from{opacity:0}}
@@ -1187,6 +1190,15 @@ function hostBegin() {
 function startPlaying() {
   G.phase = 'playing'; G.busy = true;
   G.doodleSeed = (Math.random() * 1e9) | 0; G.doodlesShown = false;   // новые каракули на каждый бой
+  // пасхалка выпадает раз в 5–6 боёв: счётчик хранится между запусками
+  try {
+    let left = parseInt(localStorage.getItem('morboy-egg-in'), 10);
+    if (isNaN(left)) left = 4 + Math.floor(Math.random() * 2);
+    left--;
+    G.eggThisBattle = left <= 0;
+    if (G.eggThisBattle) left = 5 + Math.floor(Math.random() * 2);
+    localStorage.setItem('morboy-egg-in', left);
+  } catch (e) { G.eggThisBattle = Math.random() < .18; }
   if (C !== BASE_C) setCell(BASE_C);      // начинаем подгонку с исходного размера клетки
   renderAll();
   fit();
@@ -1955,11 +1967,11 @@ const Music = (() => {
       ch: { Am: [45, [57, 60, 64]], F: [41, [53, 57, 60]], G: [43, [55, 59, 62]], Dm: [38, [50, 53, 57]], E: [40, [52, 56, 59]] },
       mel: [69,2, 72,1, 76,1, 81,2, 79,1, 76,1,  76,2, 74,1, 72,1, 74,2, 76,2,  77,2, 76,1, 74,1, 72,2, 69,2,  71,2, 72,1, 74,1, 79,4,
             81,2, 79,1, 76,1, 72,2, 76,1, 79,1,  81,3, 79,1, 76,2, 72,2,  74,2, 77,1, 81,1, 79,2, 77,2,  76,2, 68,1, 71,1, 76,4] },
-    { name: 'Погоня', E: .18, beats: 8, lead: 'square', bassPat: [0, 12, 0, 12, 0, 12, 7, 12], drums: 'chase',
-      bars: ['Em', 'Em', 'C', 'D', 'Em', 'Em', 'C', 'B'],
-      ch: { Em: [40, [64, 67, 71]], C: [36, [60, 64, 67]], D: [38, [62, 66, 69]], B: [35, [59, 63, 66]] },
-      mel: [76,1, 79,1, 83,2, 81,1, 79,1, 76,2,  74,1, 76,1, 79,2, 78,2, 76,2,  72,1, 76,1, 79,2, 84,2, 83,2,  81,2, 78,1, 74,1, 78,4,
-            83,1, 81,1, 79,1, 76,1, 79,2, 83,2,  88,3, 86,1, 83,2, 79,2,  84,2, 83,1, 81,1, 79,2, 76,2,  78,2, 75,2, 71,2, 78,2] },
+    { name: 'Разведка', E: .21, beats: 8, lead: 'flute', bassPat: [0, 7, 12, 7, 0, 7, 12, 7], pizz: true, drums: 'recon',
+      bars: ['Bm', 'G', 'D', 'A', 'Bm', 'G', 'Em', 'F#'],
+      ch: { Bm: [47, [59, 62, 66]], G: [43, [55, 59, 62]], D: [50, [62, 66, 69]], A: [45, [57, 61, 64]], Em: [40, [52, 55, 59]], 'F#': [42, [54, 58, 61]] },
+      mel: [71,2, 74,2, 78,3, 76,1,  74,2, 71,1, 74,1, 79,4,  78,2, 76,1, 74,1, 73,2, 74,2,  76,6, 73,2,
+            83,2, 81,1, 78,1, 79,2, 78,2,  76,3, 74,1, 71,4,  79,2, 78,1, 76,1, 74,2, 76,2,  73,4, 78,4] },
     { name: 'Шторм', E: .25, beats: 8, lead: 'brass', bassPat: [0, 0, 0, 0, 0, 0, 7, 12], drums: 'storm',
       bars: ['Dm', 'Bb', 'F', 'C', 'Dm', 'Bb', 'Gm', 'A'],
       ch: { Dm: [38, [62, 65, 69]], Bb: [34, [58, 62, 65]], F: [41, [57, 60, 65]], C: [36, [60, 64, 67]], Gm: [43, [55, 58, 62]], A: [33, [57, 61, 64]] },
@@ -2097,6 +2109,80 @@ const Music = (() => {
     g.gain.linearRampToValueAtTime(0, t + dur);
     o.connect(fl).connect(g).connect(bus); o.start(t); o.stop(t + dur + .03);
   }
+  function flute(t, n, dur, gain = .075) {      // флейта для «Разведки»: мягкая атака, вибрато, дыхание
+    const a = AC, g = a.createGain(), o = a.createOscillator(), o2 = a.createOscillator(), g2 = a.createGain();
+    o.type = 'sine'; o2.type = 'triangle';
+    o.frequency.value = mtof(n); o2.frequency.value = mtof(n) * 2; g2.gain.value = .12;
+    const lfo = a.createOscillator(), lg = a.createGain();
+    lfo.frequency.value = 5.2; lg.gain.setValueAtTime(0, t); lg.gain.linearRampToValueAtTime(9, t + Math.min(.25, dur));
+    lfo.connect(lg); lg.connect(o.detune); lg.connect(o2.detune);
+    o.connect(g); o2.connect(g2).connect(g);
+    env(g, t, .06, gain, dur, .1);
+    g.connect(bus);
+    [o, o2, lfo].forEach(x => { x.start(t); x.stop(t + dur + .05); });
+    const s = a.createBufferSource(), fl = a.createBiquadFilter(), ng = a.createGain();   // «дыхание» на атаке
+    s.buffer = noiseBuf(a); fl.type = 'bandpass'; fl.frequency.value = mtof(n) * 2; fl.Q.value = 2;
+    ng.gain.setValueAtTime(gain * .35, t); ng.gain.exponentialRampToValueAtTime(.001, t + .12);
+    s.connect(fl).connect(ng).connect(bus); s.start(t, Math.random() * 2); s.stop(t + .13);
+  }
+  function pizz(t, n, dur) {                    // пиццикато струнных
+    const a = AC, o = a.createOscillator(), g = a.createGain(), fl = a.createBiquadFilter();
+    o.type = 'triangle'; o.frequency.value = mtof(n);
+    fl.type = 'lowpass'; fl.frequency.setValueAtTime(2400, t); fl.frequency.exponentialRampToValueAtTime(500, t + .2);
+    g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(.16, t + .004);
+    g.gain.exponentialRampToValueAtTime(.001, t + Math.max(.18, dur));
+    o.connect(fl).connect(g).connect(bus); o.start(t); o.stop(t + Math.max(.2, dur) + .02);
+  }
+  function strings(t, root, dur, accent) {        // скачущее остинато низких струнных (квинта, стаккато)
+    const a = AC, g = a.createGain(), fl = a.createBiquadFilter();
+    fl.type = 'lowpass'; fl.frequency.value = accent ? 1900 : 1300; fl.Q.value = .8;
+    [root, root + 7, root + 12].forEach((n, k) => {
+      const o = a.createOscillator();
+      o.type = 'sawtooth'; o.frequency.value = mtof(n); o.detune.value = (k - 1) * 6;
+      o.connect(fl); o.start(t); o.stop(t + dur + .03);
+    });
+    const peak = accent ? .05 : .03;
+    g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(peak, t + .01);
+    g.gain.exponentialRampToValueAtTime(peak * .25, t + dur); g.gain.linearRampToValueAtTime(0, t + dur + .02);
+    fl.connect(g).connect(bus);
+  }
+  function horn(t, n, dur, gain = .06) {          // мягкая валторна: треугольник + немного пилы, плавное нарастание
+    const a = AC, g = a.createGain(), fl = a.createBiquadFilter();
+    fl.type = 'lowpass'; fl.Q.value = .7;
+    fl.frequency.setValueAtTime(700, t); fl.frequency.linearRampToValueAtTime(1700, t + Math.min(.15, dur));
+    const lfo = a.createOscillator(), lg = a.createGain();
+    lfo.frequency.value = 4.8; lg.gain.setValueAtTime(0, t); lg.gain.linearRampToValueAtTime(6, t + Math.min(.3, dur));
+    lfo.connect(lg);
+    [['triangle', 0, 1], ['sawtooth', 4, .35], ['triangle', -1200, .4]].forEach(([type, dt, lv]) => {
+      const o = a.createOscillator(), og = a.createGain();
+      o.type = type; o.frequency.value = mtof(n); o.detune.value = dt; og.gain.value = lv;
+      lg.connect(o.detune); o.connect(og).connect(fl); o.start(t); o.stop(t + dur + .06);
+    });
+    lfo.start(t); lfo.stop(t + dur + .06);
+    env(g, t, .05, gain, dur, .12);
+    fl.connect(g).connect(bus);
+  }
+  function choir(t, notes, dur) {                 // хор «а-а»: пила через две форманты
+    const a = AC, g = a.createGain(), mix = a.createGain();
+    [700, 1150].forEach((fq, k) => {
+      const bp = a.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = fq; bp.Q.value = 5;
+      const bg = a.createGain(); bg.gain.value = k ? .6 : 1;
+      mix.connect(bp).connect(bg).connect(g);
+    });
+    notes.forEach((n, i) => {
+      const o = a.createOscillator(); o.type = 'sawtooth'; o.frequency.value = mtof(n); o.detune.value = (i - 1) * 7;
+      o.connect(mix); o.start(t); o.stop(t + dur + .3);
+    });
+    g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(.05, t + .35);
+    g.gain.setValueAtTime(.05, t + dur - .2); g.gain.linearRampToValueAtTime(0, t + dur + .25);
+    g.connect(bus);
+  }
+  function crash(t, gain = .07) {                 // тарелка в начале фразы
+    const a = AC, s = a.createBufferSource(), fl = a.createBiquadFilter(), g = a.createGain();
+    s.buffer = noiseBuf(a); fl.type = 'highpass'; fl.frequency.value = 3500;
+    g.gain.setValueAtTime(gain, t); g.gain.exponentialRampToValueAtTime(.001, t + 1.4);
+    s.connect(fl).connect(g).connect(bus); s.start(t, Math.random() * 1.5); s.stop(t + 1.45);
+  }
   function timpani(t, n, gain = .22) {           // литавра для «Шторма»
     const a = AC, o = a.createOscillator(), g = a.createGain();
     o.type = 'sine'; o.frequency.setValueAtTime(mtof(n) * 1.5, t); o.frequency.exponentialRampToValueAtTime(mtof(n), t + .08);
@@ -2116,15 +2202,24 @@ const Music = (() => {
       const dur = m[1] * E * .9;
       if (TR.lead === 'brass') { brass(t, m[0], dur); if (loop % 2) brass(t, m[0] - 12, dur, .025); }
       else if (TR.lead === 'square') { square(t, m[0], dur); if (loop % 2) square(t, m[0] + 12, dur * .8, .015); }
+      else if (TR.lead === 'horn') { horn(t, m[0], m[1] * E * .95); if (loop % 2) horn(t, m[0] - 12, m[1] * E * .95, .035); }
+      else if (TR.lead === 'flute') { flute(t, m[0], m[1] * E * .95); if (loop % 2) flute(t, m[0] - 12, m[1] * E * .95, .035); }
       else { lead(t, m[0], m[1] * E * .92); if (loop % 2) whistle(t, m[0] + 12, m[1] * E * .85); }
     }
     // бас
-    if (TR.bassPat === 'oompah') {
+    if (TR.ostinato) {
+      const half = B === 6 ? 3 : 4;                     // сильные доли: 6/8 — 1 и 4, 4/4 — 1 и 5
+      strings(t, root + 12, E * .85, pos === 0 || pos === half);
+      if (pos === 0) pluckBass(t, root, E * 2.6);
+      if (pos === half) pluckBass(t, B === 6 ? root + 7 : root, E * 2.6);
+      if (TR.choir && pos === 0 && !intro) choir(t, tri, E * B);
+    } else if (TR.bassPat === 'oompah') {
       if (pos === 0) bass(t, root, E * 2.6);
       if (pos === 3) bass(t, root + 7, E * 2.6);
       if (pos !== 0 && pos !== 3) chord(t, tri, E * .55);
     } else {
-      pluckBass(t, root + TR.bassPat[pos], E * .85);
+      if (TR.pizz) pizz(t, root + TR.bassPat[pos], E * .9);
+      else pluckBass(t, root + TR.bassPat[pos], E * .85);
       if (pos === 0 && !intro) pad(t, tri, E * B);
     }
     // ударные
@@ -2138,6 +2233,22 @@ const Music = (() => {
       if (pos === 2 || pos === 6) snare(t, .08);
       hat(t); hat(t + E / 2);
       if (last && pos >= 4) { snare(t + E / 2, .05); }
+    } else if (TR.drums === 'epic') {                 // 4/4: литавры на 1 и 5, малый на 3 и 7, дробь томов перед повтором
+      if (pos === 0) { timpani(t, root + 24, .22); kick(t); }
+      if (pos === 4) { timpani(t, root + 19, .14); kick(t); }
+      if (pos === 2 || pos === 6) snare(t, .06);
+      if (pos === 0 && bar % 4 === 0 && !intro) crash(t, .06);
+      if (last && pos >= 5) { timpani(t, root + 24 - (pos - 5) * 3, .12); timpani(t + E / 2, root + 22 - (pos - 5) * 3, .1); }
+    } else if (TR.drums === 'gallop') {               // 6/8: литавры, тарелка на фразу, дробь перед повтором
+      if (pos === 0) { timpani(t, root + 12, .2); kick(t); }
+      if (pos === 3) { timpani(t, root + 19, .13); snare(t, .07); }
+      if (pos === 0 && bar % 4 === 0 && !intro) crash(t);
+      if (last && pos >= 3) { snare(t, .05); snare(t + E / 2, .05); }
+    } else if (TR.drums === 'recon') {                // тихие шейкеры, мягкая бочка, в конце — томы
+      if (pos === 0 || pos === 5) kick(t);
+      if (pos === 4) brush(t);
+      hat(t);
+      if (last && pos >= 4) timpani(t, root + 12 - (pos - 4) * 2, .1);
     } else if (TR.drums === 'storm') {
       if (pos === 0) timpani(t, root + 12);
       if (pos === 3) timpani(t, root + 19, .15);
@@ -2387,7 +2498,9 @@ function dH(g, d, col, s, R, step) {
   const defs = g.ownerSVGElement.querySelector('defs');
   const cp = mk('clipPath', { id }, defs);
   mk('path', { d: d + 'Z' }, cp);
-  const hg = mk('g', { 'clip-path': `url(#${id})` }, g);
+  // рваная «грифельная» текстура — только у закраски; контуры и надписи — обычные линии карандашом
+  const tex = mk('g', { filter: 'url(#pencilTex)' }, g);
+  const hg = mk('g', { 'clip-path': `url(#${id})` }, tex);
   let h = '';
   const st = s * (step || .07);
   for (let x = -s; x < s; x += st) h += line(x, s, x + s, 0, R, s * .01, 0);
@@ -2471,9 +2584,7 @@ const DOODLES = {
     dS(g, line(...P(.5, .28), ...P(.5, .6), R, .5, 0) + line(...P(.28, .36), ...P(.5, .42), R, .5, 0) + line(...P(.5, .42), ...P(.74, .3), R, .5, 0)
       + line(...P(.5, .6), ...P(.34, .9), R, .5, 0) + line(...P(.5, .6), ...P(.66, .9), R, .5, 0), 'gr', A());
     dS(g, line(...P(.74, .3), ...P(.8, .1), R, .4, 0), 'br', A());
-    const flag = smooth([P(.8, .1), P(.93, .14), P(.8, .2)]);
-    dH(g, flag, 'rd', s, R, .04);
-    dS(g, flag, 'rd', A());
+    dS(g, smooth([P(.8, .1), P(.93, .14), P(.8, .2)]), 'rd', A());   // флажок — без штриховки (линейный рисунок)
   },
   rocket(g, s, R, A) {
     const P = (x, y) => [x * s, y * s];
@@ -2551,7 +2662,83 @@ const DOODLES = {
     dS(g, line(...P(.6, .3), ...P(.42, .3), R, .4, 0) + line(...P(.42, .3), ...P(.4, .48), R, .4, 0)
       + smooth([P(.4, .48), P(.5, .44), P(.6, .5), P(.6, .62), P(.5, .7), P(.4, .66)]), 'rd', A());
   },
+
+  // ---- пасхалки: каракули «по мотивам» классических игр (жанры, без чужих персонажей) ----
+  blocks(g, s, R, A) {          // падающие блоки
+    const u = s / 6, sq = (cx, cy) => rect(cx * u + 1, cy * u + 1, u - 2, u - 2, R, .35);
+    let d = '';
+    [[0, 5], [1, 5], [2, 5], [3, 5], [0, 4], [1, 4], [4, 5], [5, 5], [5, 4], [4, 4], [2, 4]].forEach(([x, y]) => d += sq(x, y));
+    dS(g, d, 'gr', A());
+    const fall = sq(2, 1) + sq(3, 1) + sq(3, 0) + sq(4, 1);     // падающая фигурка
+    dS(g, fall, 'pu', A());
+    dS(g, line(3.5 * u, 2.3 * u, 3.5 * u, 3.4 * u, R, .3, 0) + line(3.2 * u, 3.1 * u, 3.5 * u, 3.4 * u, R, .2, 0) + line(3.8 * u, 3.1 * u, 3.5 * u, 3.4 * u, R, .2, 0), 'gr', A());
+  },
+  snake(g, s, R, A) {           // змейка и яблоко
+    const P = (x, y) => [x * s, y * s];
+    const pts = [P(.12, .82), P(.12, .55), P(.42, .55), P(.42, .28), P(.75, .28)];
+    let d = ''; for (let k = 0; k < pts.length - 1; k++) d += line(...pts[k], ...pts[k + 1], R, .5, 0);
+    dS(g, d, 'gn', A());
+    dS(g, blob(...P(.75, .28), s * .045, R, 1.6, .2), 'gr', A());          // голова
+    dS(g, blob(...P(.82, .72), s * .07, R, 1.05, .08) + line(...P(.82, .64), ...P(.85, .56), R, .2, 0), 'rd', A());   // яблоко
+    dS(g, rect(...P(.04, .1), s * .92, s * .84, R, .6), 'gr', A());       // «экран»
+  },
+  invader(g, s, R, A) {         // пришелец из космической стрелялки — нарисован от руки, как остальные каракули
+    const P = (x, y) => [x * s, y * s];
+    // тело: округлая «голова-купол» с волнистым низом
+    const body = smooth([P(.22, .5), P(.24, .3), P(.36, .17), P(.5, .14), P(.64, .17), P(.76, .3), P(.78, .5),
+      P(.7, .56), P(.62, .5), P(.56, .56), P(.5, .5), P(.44, .56), P(.38, .5), P(.3, .56), P(.22, .5)]);
+    dH(g, body, 'gn', s, R, .07);
+    dS(g, body, 'gn', A());
+    // антенны с шариками
+    dS(g, smooth([P(.4, .18), P(.36, .1), P(.32, .05)]) + smooth([P(.6, .18), P(.64, .1), P(.68, .05)]), 'gn', A());
+    dS(g, blob(...P(.31, .04), s * .025, R, 1.4, .2) + blob(...P(.69, .04), s * .025, R, 1.4, .2), 'gn', A());
+    // глаза и улыбка
+    dS(g, blob(...P(.41, .33), s * .055, R, 1.05, .08) + blob(...P(.59, .33), s * .055, R, 1.05, .08), 'gr', A());
+    dS(g, blob(...P(.42, .34), s * .015, R, 1.6, .2) + blob(...P(.6, .34), s * .015, R, 1.6, .2), 'gr', A());
+    dS(g, smooth([P(.44, .43), P(.5, .46), P(.56, .43)]), 'gr', A());
+    // щупальца
+    dS(g, smooth([P(.3, .56), P(.27, .64), P(.31, .7)]) + smooth([P(.5, .52), P(.49, .62), P(.52, .68)]) + smooth([P(.7, .56), P(.73, .64), P(.69, .7)]), 'gn', A());
+    // кораблик игрока внизу и пунктир лазера
+    dS(g, line(...P(.44, .96), ...P(.5, .86), R, .3, 0) + line(...P(.5, .86), ...P(.56, .96), R, .3, 0) + line(...P(.44, .96), ...P(.56, .96), R, .3, 0), 'bl', A());
+    let laser = ''; for (let k = 0; k < 3; k++) laser += line(...P(.5, .83 - k * .05), ...P(.5, .81 - k * .05), R, .1, 0);
+    dS(g, laser, 'rd', A());
+  },
+  minesweeper(g, s, R, A) {     // «сапёр»: клетки, цифры и флажок
+    const u = s / 4;
+    let d = '';
+    for (let k = 0; k <= 4; k++) { d += line(k * u, 0, k * u, s, R, .3, 0) + line(0, k * u, s, k * u, R, .3, 0); }
+    dS(g, d, 'gr', A());
+    const num = (n, x, y, col) => { const t = mk('text', { x: (x + .5) * u, y: (y + .78) * u, 'text-anchor': 'middle', 'font-size': u * .8, class: 'doodle-text c-' + col }, g); t.textContent = n; };
+    num('1', 0, 0, 'bl'); num('1', 1, 0, 'bl'); num('2', 1, 1, 'gn'); num('1', 0, 2, 'bl'); num('3', 2, 2, 'rd');
+    dS(g, line(3.4 * u, 1.85 * u, 3.4 * u, 1.15 * u, R, .2, 0), 'gr', A());
+    dS(g, smooth([[3.4 * u, 1.15 * u], [3.75 * u, 1.3 * u], [3.4 * u, 1.45 * u]]), 'rd', A());
+    dS(g, blob(2.5 * u, 3.5 * u, u * .22, R, 1.05, .1) + line(2.2 * u, 3.5 * u, 2.8 * u, 3.5 * u, R, .2, 0) + line(2.5 * u, 3.2 * u, 2.5 * u, 3.8 * u, R, .2, 0), 'gr', A());   // мина
+  },
+  pong(g, s, R, A) {            // пинг-понг
+    const P = (x, y) => [x * s, y * s];
+    dS(g, rect(...P(.05, .12), s * .9, s * .76, R, .5), 'gr', A());
+    dS(g, rect(...P(.12, .3), s * .05, s * .22, R, .2) + rect(...P(.83, .5), s * .05, s * .22, R, .2), 'gr', A());
+    let mid = ''; for (let k = 0; k < 6; k++) mid += line(...P(.5, .16 + k * .12), ...P(.5, .21 + k * .12), R, .1, 0);
+    dS(g, mid, 'gr', A());
+    dS(g, rect(...P(.62, .36), s * .05, s * .05, R, .15), 'gr', A());
+    dS(g, line(...P(.22, .5), ...P(.6, .38), R, .4, 0), 'gr', A());   // траектория мяча
+  },
+  platformer(g, s, R, A) {      // платформер: человечек прыгает через яму за монеткой
+    const P = (x, y) => [x * s, y * s];
+    dS(g, line(...P(.02, .82), ...P(.38, .82), R, .4, 0) + line(...P(.62, .82), ...P(.98, .82), R, .4, 0)
+      + line(...P(.38, .82), ...P(.38, .98), R, .3, 0) + line(...P(.62, .82), ...P(.62, .98), R, .3, 0), 'br', A());
+    dS(g, rect(...P(.66, .4), s * .12, s * .12, R, .3) + rect(...P(.78, .4), s * .12, s * .12, R, .3), 'br', A());   // блоки
+    const q = mk('text', { x: s * .72, y: s * .5, 'text-anchor': 'middle', 'font-size': s * .1, class: 'doodle-text c-or' }, g); q.textContent = '?';
+    dS(g, blob(...P(.5, .3), s * .05, R, 1.05, .08), 'or', A());     // монетка
+    dS(g, blob(...P(.42, .44), s * .045, R) + line(...P(.42, .49), ...P(.44, .62), R, .2, 0)
+      + line(...P(.44, .62), ...P(.38, .7), R, .2, 0) + line(...P(.44, .62), ...P(.5, .68), R, .2, 0)
+      + line(...P(.43, .54), ...P(.36, .48), R, .2, 0) + line(...P(.43, .54), ...P(.5, .5), R, .2, 0), 'gr', A());
+    dS(g, smooth([P(.18, .78), P(.3, .5), P(.42, .42)]), 'gr', A());  // пунктир прыжка
+  },
 };
+const EASTER_EGGS = ['blocks', 'snake', 'invader', 'minesweeper', 'pong', 'platformer'];
+// рисунки со штриховкой (закрашенные) — за бой не больше одного; остальные — из одних линий
+const FILLED_DOODLES = new Set(['sun', 'smiley', 'cat', 'house', 'flower', 'star', 'heart', 'rocket', 'fish', 'sailboat', 'cloud', 'cube', 'invader']);
 function renderDoodles() {
   const svg = $('#doodles');
   if (!svg) return;
@@ -2595,11 +2782,19 @@ function renderDoodles() {
   const fits = box => box.x >= 8 && box.y >= 8 && box.x + box.w <= W - C * 1.3 && box.y + box.h <= H - 8 &&
     !ex.some(r => hit(box, r)) && !placed.some(r => hit(box, r));
   const shuffle = arr => { const a = arr.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(R() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
-  // на больших экранах — поменьше каракулей
-  const maxItems = W >= 1000 ? 5 : 7;
-  const kinds = shuffle(Object.keys(DOODLES)), texts = shuffle(DOODLE_TEXTS).slice(0, 2);
+  // немного каракулей: 1 закрашенная + до 2 (большие экраны) или до 3 (телефоны) надписей/линейных рисунков
+  const maxItems = W >= 1000 ? 3 : 4;
+  // состав: ровно один закрашенный рисунок + надписи/рисунки из линий; пасхалка (раз в 5–6 боёв) — одна
+  const notEgg = k => !EASTER_EGGS.includes(k);
+  const filledKinds = shuffle(Object.keys(DOODLES).filter(k => FILLED_DOODLES.has(k) && notEgg(k)));
+  const lineKinds = shuffle(Object.keys(DOODLES).filter(k => !FILLED_DOODLES.has(k) && notEgg(k)));
+  const eggs = shuffle(EASTER_EGGS), texts = shuffle(DOODLE_TEXTS).slice(0, 2);
+  const others = shuffle([{ text: texts[0] }, { text: texts[1] }, { kind: lineKinds[0] }, { kind: lineKinds[1] }, { kind: lineKinds[2] }]);
+  const egg = G.eggThisBattle ? eggs[0] : null;
   const items = [];
-  for (let i = 0; i < maxItems + 2; i++) items.push(i % 3 === 1 && texts.length ? { text: texts.pop() } : { kind: kinds[i] });
+  if (egg && FILLED_DOODLES.has(egg)) items.push({ kind: egg });          // закрашенная пасхалка и есть «тот самый один»
+  else { items.push({ kind: filledKinds[0] }); if (egg) items.push({ kind: egg }); }
+  items.push(...others);
   let count = 0;
   items.forEach(it => {
     if (count >= maxItems) return;
@@ -2613,7 +2808,7 @@ function renderDoodles() {
       w = (bb && bb.width) || it.text.length * fs * .55;
       h = fs * 1.35;
       probe.remove();
-    } else w = h = C * (2.1 + R() * 1.3);
+    } else w = h = C * (1.8 + R() * .8);
     const rot = (R() - .5) * (it.text ? 12 : 22);
     const rad = Math.abs(rot) * Math.PI / 180;
     // габарит повёрнутого элемента + зазор
@@ -2625,10 +2820,12 @@ function renderDoodles() {
       placed.push(padded);
       count++;
       const cx = box.x + bw / 2, cy = box.y + bh / 2;
-      const g = mk('g', { transform: `translate(${f(cx)} ${f(cy)}) rotate(${f(rot)}) translate(${f(-w / 2)} ${f(-h / 2)})`, filter: 'url(#pencilTex)' }, svg);
+      const g = mk('g', { transform: `translate(${f(cx)} ${f(cy)}) rotate(${f(rot)}) translate(${f(-w / 2)} ${f(-h / 2)})` }, svg);
+      // большинство каракулей — простым карандашом, цветными — примерно каждая четвёртая
+      if (R() > .25) g.setAttribute('class', 'mono');
       if (it.text) {
-        const col = ['gr', 'gr', 'bl', 'pu', 'gn'][Math.floor(R() * 5)];
-        g.setAttribute('class', 'c-' + col);
+        const col = g.getAttribute('class') === 'mono' ? 'gr' : ['bl', 'pu', 'gn'][Math.floor(R() * 3)];
+        g.classList.add('c-' + col);
         const el = mk('text', { x: 0, y: fs, 'font-size': fs, class: 'doodle-text' + (anim ? ' fadein' : '') }, g);
         el.textContent = it.text;
         if (anim) el.style.animationDelay = (delay += .15) + 's';
