@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
 <meta name="theme-color" content="#fdfcf6">
-<meta name="game-version" content="6">
+<meta name="game-version" content="7">
 <title>Морской бой</title>
 <link rel="icon" id="favicon" href="icon.ico">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -2053,7 +2053,7 @@ function snap() {
   $('#sideEn').classList.toggle('minified', miniId === 'svgEn');
   // после плавной смены размеров ещё раз привязываем крупное поле к клеткам тетради
   clearTimeout(snapAgainT);
-  if (miniId) snapAgainT = setTimeout(snapOnly, 450);
+  if (miniId) snapAgainT = setTimeout(() => snapOnly(), 480);
   snapOnly(miniId, mini, s);
 }
 function snapOnly(miniId, mini, s) {
@@ -2061,10 +2061,11 @@ function snapOnly(miniId, mini, s) {
   s = s || $('#sheet').getBoundingClientRect();
   document.querySelectorAll('.board svg').forEach(svg => {
     if (miniId === svg.id) { svg.style.transformOrigin = '0 0'; svg.style.transform = `scale(${mini.toFixed(3)})`; return; }
-    svg.style.transformOrigin = '';
-    svg.style.transform = 'none';
-    const r = svg.getBoundingClientRect();
+    // мерим контейнер (svg лежит в его левом верхнем углу): у него нет анимированного transform,
+    // поэтому замер точный даже во время плавной смены размеров полей
+    const r = svg.parentElement.getBoundingClientRect();
     if (!r.width) return;
+    svg.style.transformOrigin = '0 0';
     svg.style.transform = `translate(${f(mod(s.left - r.left, C))}px,${f(mod(s.top - r.top, C))}px)`;
   });
 }
