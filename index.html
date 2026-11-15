@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
 <meta name="theme-color" content="#fdfcf6">
-<meta name="game-version" content="16">
+<meta name="game-version" content="17">
 <title>Морской бой</title>
 <link rel="icon" id="favicon" href="icon.ico">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -2682,25 +2682,26 @@ const DOODLES = {
     dS(g, blob(...P(.82, .72), s * .07, R, 1.05, .08) + line(...P(.82, .64), ...P(.85, .56), R, .2, 0), 'rd', A());   // яблоко
     dS(g, rect(...P(.04, .1), s * .92, s * .84, R, .6), 'gr', A());       // «экран»
   },
-  invader(g, s, R, A) {         // пришелец из космической стрелялки — нарисован от руки, как остальные каракули
+  invader(g, s, R, A) {         // пиксельный пришелец (своя сетка), нарисованный небрежно — как в тетрадке
+    const u = s / 11, ox = (s - 9 * u) / 2;
+    const px = ['...X.X...', '..XXXXX..', '.XX.X.XX.', 'XXXXXXXXX', 'X.XXXXX.X', 'X.X...X.X', '...X.X...'];
+    let box = '', fill = '';
+    px.forEach((row, y) => [...row].forEach((c, x) => {
+      if (c !== 'X') return;
+      // каждый «пиксель» — от руки: чуть сдвинут, чуть разного размера, внутри пара штрихов
+      const jx = (R() - .5) * u * .18, jy = (R() - .5) * u * .18, sz = u * (.78 + R() * .16);
+      const x0 = ox + x * u + (u - sz) / 2 + jx, y0 = y * u + (u - sz) / 2 + jy;
+      box += rect(x0, y0, sz, sz, R, .55);
+      fill += line(x0 + sz * .15, y0 + sz * .85, x0 + sz * .6, y0 + sz * .2, R, .3, 0);
+      if (R() < .7) fill += line(x0 + sz * .45, y0 + sz * .9, x0 + sz * .88, y0 + sz * .35, R, .3, 0);
+    }));
+    mk('path', { d: fill, class: 'doodle hatch c-pu' }, g);
+    dS(g, box, 'pu', A());
+    // кораблик игрока — ниже, а выстрелы — тремя раздельными чёрточками
     const P = (x, y) => [x * s, y * s];
-    // тело: округлая «голова-купол» с волнистым низом
-    const body = smooth([P(.22, .5), P(.24, .3), P(.36, .17), P(.5, .14), P(.64, .17), P(.76, .3), P(.78, .5),
-      P(.7, .56), P(.62, .5), P(.56, .56), P(.5, .5), P(.44, .56), P(.38, .5), P(.3, .56), P(.22, .5)]);
-    dH(g, body, 'gn', s, R, .07);
-    dS(g, body, 'gn', A());
-    // антенны с шариками
-    dS(g, smooth([P(.4, .18), P(.36, .1), P(.32, .05)]) + smooth([P(.6, .18), P(.64, .1), P(.68, .05)]), 'gn', A());
-    dS(g, blob(...P(.31, .04), s * .025, R, 1.4, .2) + blob(...P(.69, .04), s * .025, R, 1.4, .2), 'gn', A());
-    // глаза и улыбка
-    dS(g, blob(...P(.41, .33), s * .055, R, 1.05, .08) + blob(...P(.59, .33), s * .055, R, 1.05, .08), 'gr', A());
-    dS(g, blob(...P(.42, .34), s * .015, R, 1.6, .2) + blob(...P(.6, .34), s * .015, R, 1.6, .2), 'gr', A());
-    dS(g, smooth([P(.44, .43), P(.5, .46), P(.56, .43)]), 'gr', A());
-    // щупальца
-    dS(g, smooth([P(.3, .56), P(.27, .64), P(.31, .7)]) + smooth([P(.5, .52), P(.49, .62), P(.52, .68)]) + smooth([P(.7, .56), P(.73, .64), P(.69, .7)]), 'gn', A());
-    // кораблик игрока внизу и пунктир лазера
-    dS(g, line(...P(.44, .96), ...P(.5, .86), R, .3, 0) + line(...P(.5, .86), ...P(.56, .96), R, .3, 0) + line(...P(.44, .96), ...P(.56, .96), R, .3, 0), 'bl', A());
-    let laser = ''; for (let k = 0; k < 3; k++) laser += line(...P(.5, .83 - k * .05), ...P(.5, .81 - k * .05), R, .1, 0);
+    dS(g, line(...P(.43, 1), ...P(.5, .9), R, .3, 0) + line(...P(.5, .9), ...P(.57, 1), R, .3, 0) + line(...P(.43, 1), ...P(.57, 1), R, .3, 0), 'bl', A());
+    let laser = '';
+    for (let k = 0; k < 3; k++) { const y1 = .86 - k * .085; laser += line(...P(.5, y1), ...P(.5, y1 - .028), R, .05, 0); }
     dS(g, laser, 'rd', A());
   },
   minesweeper(g, s, R, A) {     // «сапёр»: клетки, цифры и флажок
