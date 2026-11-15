@@ -1,10 +1,10 @@
 <!doctype html>
-<html lang="ru">
+<html lang="ru" class="modal">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
 <meta name="theme-color" content="#fdfcf6">
-<meta name="game-version" content="7">
+<meta name="game-version" content="8">
 <title>Морской бой</title>
 <link rel="icon" id="favicon" href="icon.ico">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -301,6 +301,39 @@ body.stacked.playing .sheet{padding-bottom:calc(var(--cell)*.3)}
 html.locked,html.locked body{overflow:hidden;overscroll-behavior:none;height:100%}
 html.locked .sheet{min-height:100%}
 html{overscroll-behavior-y:none}
+/* пока открыто меню/карточка или заставка — фон не прокручивается */
+html.modal,html.modal body{overflow:hidden;overscroll-behavior:none}
+.overlay{overscroll-behavior:contain}
+.card{overscroll-behavior:contain}
+
+/* ---------- панель громкости ---------- */
+.vol-panel{
+  position:fixed;z-index:120;width:min(280px,calc(100vw - 16px));
+  background-color:var(--paper);
+  background-image:linear-gradient(to bottom,var(--grid) 1px,transparent 1px),linear-gradient(to right,var(--grid) 1px,transparent 1px);
+  background-size:20px 20px;
+  border:2px solid var(--ink);border-radius:14px 4px 12px 5px/5px 12px 4px 14px;
+  box-shadow:0 8px 24px rgba(0,0,0,.25);padding:10px 14px 12px;
+  transform:rotate(-.8deg);animation:cardin .25s cubic-bezier(.3,1.4,.5,1);
+  font-size:calc(20px*var(--ui,1));
+}
+.vol-title{font-weight:700;font-size:1.1em;margin-bottom:4px}
+.vol-row{display:grid;grid-template-columns:5.2em 1fr 2em;align-items:center;gap:8px;margin:8px 0 2px}
+.vol-row b{text-align:right;color:var(--red);font-weight:700}
+.vol-row input[type=range]{
+  -webkit-appearance:none;appearance:none;width:100%;height:28px;background:transparent;margin:0;cursor:pointer;touch-action:none;
+}
+.vol-row input[type=range]::-webkit-slider-runnable-track{
+  height:6px;border-radius:3px;border:1.5px solid var(--ink);
+  background:linear-gradient(to right,var(--red) var(--p,50%),transparent var(--p,50%));
+}
+.vol-row input[type=range]::-webkit-slider-thumb{
+  -webkit-appearance:none;width:22px;height:22px;margin-top:-10px;border-radius:50% 45% 52% 48%;
+  background:var(--paper);border:2.5px solid var(--ink);box-shadow:1px 1px 0 var(--ink-soft);
+}
+.vol-row input[type=range]::-moz-range-track{height:6px;border-radius:3px;border:1.5px solid var(--ink);background:transparent}
+.vol-row input[type=range]::-moz-range-progress{height:6px;background:var(--red)}
+.vol-row input[type=range]::-moz-range-thumb{width:20px;height:20px;border-radius:50%;background:var(--paper);border:2.5px solid var(--ink)}
 body.stacked h1{font-size:calc(var(--cell)*1.3)}
 
 /* карточки и заставка растут вместе с клеткой (планшеты, большие экраны) */
@@ -338,7 +371,6 @@ body.stacked h1{font-size:calc(var(--cell)*1.3)}
       <span class="mode-tag" id="modeTag"></span>
     </div>
     <div class="tools">
-      <button class="btn small" id="btnMusic">♪ музыка</button>
       <button class="btn small" id="btnSound">звук</button>
       <button class="btn small" id="btnMenu">меню</button>
     </div>
@@ -1558,8 +1590,14 @@ window.addEventListener('pagehide', () => { if (link) link.close(true); });
 /* =========================================================
    Карточки
    ========================================================= */
-function showCard(html) { $('#card').innerHTML = html; $('#overlay').classList.add('show'); }
-function closeCard() { $('#overlay').classList.remove('show'); }
+function showCard(html) {
+  $('#card').innerHTML = html; $('#overlay').classList.add('show');
+  document.documentElement.classList.add('modal'); window.scrollTo(0, 0);
+}
+function closeCard() {
+  $('#overlay').classList.remove('show');
+  document.documentElement.classList.remove('modal');
+}
 function showError(text) {
   showCard(`<h2>Упс…</h2><p class="err">${text}</p><div class="row"><button class="btn" data-act="menu">В меню</button></div>`);
 }
@@ -1706,8 +1744,19 @@ $('#btnMenu').addEventListener('click', () => {
 /* =========================================================
    Звук
    ========================================================= */
-let AC = null, soundOn = true, musicOn = true, audioUnlocked = false;
-try { soundOn = localStorage.getItem('morboy-sound') !== 'off'; musicOn = localStorage.getItem('morboy-music') !== 'off'; } catch (e) {}
+// громкость 0..1 (0 — выключено); хранится между запусками
+let AC = null, audioUnlocked = false, sfxVol = .8, musicVol = .7, SFX_OUT = null;
+try {
+  const sv = localStorage.getItem('morboy-sfx-vol'), mv = localStorage.getItem('morboy-music-vol');
+  if (sv !== null) sfxVol = Math.max(0, Math.min(1, +sv)); else if (localStorage.getItem('morboy-sound') === 'off') sfxVol = 0;
+  if (mv !== null) musicVol = Math.max(0, Math.min(1, +mv)); else if (localStorage.getItem('morboy-music') === 'off') musicVol = 0;
+} catch (e) {}
+const soundOnF = () => sfxVol > 0, musicOnF = () => musicVol > 0;
+function sfxOut(a) {          // общий регулятор громкости эффектов
+  if (!SFX_OUT) { SFX_OUT = a.createGain(); SFX_OUT.connect(a.destination); }
+  SFX_OUT.gain.value = sfxVol * 1.25;
+  return SFX_OUT;
+}
 function ensureAC() {
   try {
     if (!AC) AC = new (window.AudioContext || window.webkitAudioContext)();
@@ -1725,37 +1774,71 @@ function noiseBuf(a) {
   return NOISE;
 }
 function updAudioBtns() {
-  const s = $('#btnSound'), m = $('#btnMusic');
-  s.textContent = 'звук'; s.classList.toggle('off', !soundOn);
-  m.textContent = '♪ музыка'; m.classList.toggle('off', !musicOn);
+  const s = $('#btnSound');
+  s.innerHTML = (sfxVol || musicVol ? '♪ ' : '') + 'звук';
+  s.classList.toggle('off', !sfxVol && !musicVol);
 }
-$('#btnSound').addEventListener('click', () => {
-  soundOn = !soundOn; updAudioBtns();
-  try { localStorage.setItem('morboy-sound', soundOn ? 'on' : 'off'); } catch (e) {}
+
+/* ---------- панель громкости (кнопка «звук») ---------- */
+function volPanelHTML() {
+  const row = (id, label, v) => `<label class="vol-row"><span>${label}</span>
+      <input type="range" min="0" max="100" step="1" value="${Math.round(v * 100)}" id="${id}">
+      <b id="${id}V">${Math.round(v * 100)}</b></label>`;
+  return `<div class="vol-title">Громкость</div>${row('volMusic', 'Музыка', musicVol)}${row('volSfx', 'Эффекты', sfxVol)}`;
+}
+function toggleVolPanel(force) {
+  let p = $('#volPanel');
+  const open = force !== undefined ? force : !p;
+  if (!open) { if (p) p.remove(); return; }
+  if (p) return;
+  p = document.createElement('div');
+  p.id = 'volPanel'; p.className = 'vol-panel';
+  p.innerHTML = volPanelHTML();
+  document.body.appendChild(p);
+  const b = $('#btnSound').getBoundingClientRect();
+  const w = p.offsetWidth;
+  p.style.top = (b.bottom + 8) + 'px';
+  p.style.left = Math.max(8, Math.min(window.innerWidth - w - 8, b.right - w)) + 'px';
+  const setTrack = el => el.style.setProperty('--p', el.value + '%');
+  const mus = $('#volMusic'), fx = $('#volSfx');
+  [mus, fx].forEach(setTrack);
+  mus.addEventListener('input', () => {
+    musicVol = mus.value / 100; setTrack(mus); $('#volMusicV').textContent = mus.value;
+    audioUnlocked = true; ensureAC();
+    Music.setVolume(musicVol); updateMusic(); updAudioBtns();
+    try { localStorage.setItem('morboy-music-vol', musicVol); } catch (e) {}
+  });
+  fx.addEventListener('input', () => {
+    sfxVol = fx.value / 100; setTrack(fx); $('#volSfxV').textContent = fx.value;
+    updAudioBtns();
+    try { localStorage.setItem('morboy-sfx-vol', sfxVol); } catch (e) {}
+  });
+  fx.addEventListener('change', () => { audioUnlocked = true; sfx('hit'); });   // пример громкости
+}
+$('#btnSound').addEventListener('click', e => { e.stopPropagation(); toggleVolPanel(); });
+document.addEventListener('pointerdown', e => {
+  const p = $('#volPanel');
+  if (p && !p.contains(e.target) && !e.target.closest('#btnSound')) toggleVolPanel(false);
 });
-$('#btnMusic').addEventListener('click', () => {
-  musicOn = !musicOn; updAudioBtns();
-  try { localStorage.setItem('morboy-music', musicOn ? 'on' : 'off'); } catch (e) {}
-  audioUnlocked = true; ensureAC();
-  updateMusic();
-});
+window.addEventListener('resize', () => toggleVolPanel(false));
 function sfx(type) {
-  if (!soundOn || !audioUnlocked) return;
+  if (!sfxVol || !audioUnlocked) return;
   const a = ensureAC();
   if (!a) return;
   try {
+    const OUT = sfxOut(a);
     const t = a.currentTime + .01;
     const noise = (dur, ftype, freq, gain, q = 1, at = t) => {
       const s = a.createBufferSource(), fl = a.createBiquadFilter(), g = a.createGain();
       s.buffer = noiseBuf(a); fl.type = ftype; fl.frequency.value = freq; fl.Q.value = q;
       g.gain.setValueAtTime(gain, at); g.gain.exponentialRampToValueAtTime(.001, at + dur);
-      s.connect(fl).connect(g).connect(a.destination); s.start(at, Math.random() * 2); s.stop(at + dur);
+      s.connect(fl).connect(g).connect(OUT); s.start(at, Math.random() * 2); s.stop(at + dur);
     };
     const tone = (f1, f2, dur, gain, type = 'sine', at = t) => {
       const o = a.createOscillator(), g = a.createGain();
       o.type = type; o.frequency.setValueAtTime(f1, at); o.frequency.exponentialRampToValueAtTime(f2, at + dur);
       g.gain.setValueAtTime(gain, at); g.gain.exponentialRampToValueAtTime(.001, at + dur);
-      o.connect(g).connect(a.destination); o.start(at); o.stop(at + dur + .02);
+      o.connect(g).connect(OUT); o.start(at); o.stop(at + dur + .02);
     };
     if (type === 'scratch') noise(.09, 'bandpass', 3200, .08, 2);
     else if (type === 'bad') { tone(190, 130, .16, .07, 'square'); tone(150, 100, .16, .05, 'square', t + .12); }
@@ -1940,7 +2023,14 @@ const Music = (() => {
     s.start(); lfo.start();
     sea = [s, lfo];
   }
+  let baseLevel = .6;
   const api = {
+    setVolume(v) {
+      if (!on || !master) return;
+      const t = AC.currentTime;
+      master.gain.cancelScheduledValues(t);
+      master.gain.setTargetAtTime(baseLevel * v, t, .05);
+    },
     // name: 'menu' | 'battle' | null — плавно переключает мелодию
     play(name) {
       if (name === cur && on) return;
@@ -1952,7 +2042,8 @@ const Music = (() => {
       const a = AC;
       master = a.createGain();
       master.gain.setValueAtTime(0, a.currentTime);
-      master.gain.linearRampToValueAtTime(battle ? .42 : .6, a.currentTime + (battle ? 1.2 : 2));
+      baseLevel = battle ? .42 : .6;
+      master.gain.linearRampToValueAtTime(baseLevel * musicVol, a.currentTime + (battle ? 1.2 : 2));
       master.connect(a.destination);
       bus = a.createGain();
       const dl = a.createDelay(), fb = a.createGain(), wet = a.createGain();
@@ -1978,7 +2069,7 @@ const Music = (() => {
 })();
 // меню и расстановка — вальсок, сражение — марш, после боя тишина (играют фанфары победы/поражения)
 function updateMusic() {
-  const ok = musicOn && audioUnlocked && !document.hidden && !appPaused;
+  const ok = musicVol > 0 && audioUnlocked && !document.hidden && !appPaused;
   const song = !ok ? null : (G.phase === 'menu' || G.phase === 'placing') ? 'menu' : G.phase === 'playing' ? 'battle' : null;
   Music.play(song);
 }
