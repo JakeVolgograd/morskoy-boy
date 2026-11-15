@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
 <meta name="theme-color" content="#fdfcf6">
-<meta name="game-version" content="10">
+<meta name="game-version" content="11">
 <title>Морской бой</title>
 <link rel="icon" id="favicon" href="icon.ico">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -277,11 +277,12 @@ body.stacked.playing .side{min-width:0}
 body.notrans .board,body.notrans .board svg{transition:none!important}
 /* школьные каракули карандашом на свободных местах листа (во время боя) */
 .doodles{position:absolute;left:0;top:0;z-index:0;pointer-events:none;overflow:visible}
-.doodle{fill:none;stroke:#66676e;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round;opacity:.62}
-.doodle.fillp{fill:#66676e;stroke:none}
-.doodle.red{stroke:var(--red);opacity:.72}
-.doodle-text{font-family:'Caveat',cursive;fill:#66676e;opacity:.7;font-weight:600}
-.doodle-text.red{fill:var(--red);opacity:.8}
+/* цветные карандаши; текстуру грифеля даёт SVG-фильтр #pencilTex */
+.doodle{fill:none;stroke:var(--dc,#5f6068);stroke-width:2.1;stroke-linecap:round;stroke-linejoin:round;opacity:.85}
+.doodle.hatch{stroke-width:1.2;opacity:.6}
+.c-gr{--dc:#5f6068}.c-rd{--dc:#c8493e}.c-bl{--dc:#3a62b4}.c-gn{--dc:#4d8a3a}.c-or{--dc:#df8a2c}
+.c-ye{--dc:#e2b92b}.c-pu{--dc:#7d50a6}.c-br{--dc:#8a5a33}.c-sk{--dc:#6aa6d8}
+.doodle-text{font-family:'Caveat',cursive;fill:var(--dc,#5f6068);opacity:.85;font-weight:600}
 .doodle-text.fadein{animation:fadein .8s ease-out both}
 @keyframes fadein{from{opacity:0}}
 body.compact .doodles{grid-column:1 / -1}
@@ -1975,11 +1976,17 @@ const Music = (() => {
     tr.melAt = Array(tr.steps).fill(null);
     for (let i = 0, s = 0; i < tr.mel.length; i += 2) { tr.melAt[s] = [tr.mel[i], tr.mel[i + 1]]; s += tr.mel[i + 1]; }
   });
-  let trackIdx = -1, TR = TRACKS[0];
-  function pickTrack(next) {
-    let i = next ? (trackIdx + 1) % TRACKS.length : Math.floor(Math.random() * TRACKS.length);
-    if (!next && TRACKS.length > 1 && i === trackIdx) i = (i + 1) % TRACKS.length;   // не повторяем прошлый бой
-    trackIdx = i; TR = TRACKS[i];
+  // один трек на весь бой; треки идут по перемешанному кругу — все прозвучат, прежде чем какой-то повторится
+  let trackIdx = -1, TR = TRACKS[0], bag = [];
+  try { trackIdx = +localStorage.getItem('morboy-last-track'); if (isNaN(trackIdx)) trackIdx = -1; } catch (e) {}
+  function pickTrack() {
+    if (!bag.length) {
+      bag = TRACKS.map((_, i) => i);
+      for (let i = bag.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [bag[i], bag[j]] = [bag[j], bag[i]]; }
+      if (bag.length > 1 && bag[bag.length - 1] === trackIdx) bag.unshift(bag.pop());   // не тот же, что в прошлом бою
+    }
+    trackIdx = bag.pop(); TR = TRACKS[trackIdx];
+    try { localStorage.setItem('morboy-last-track', trackIdx); } catch (e) {}
   }
 
   const mtof = n => 440 * Math.pow(2, (n - 69) / 12);
@@ -2164,7 +2171,6 @@ const Music = (() => {
       next += E;
       if (++step >= (cur === 'battle' ? TR.steps : STEPS)) {
         step = 0; loop++;
-        if (cur === 'battle' && loop >= 3) { pickTrack(true); E = TR.E; loop = 0; }   // долгий бой — следующий трек
       }
     }
   }
@@ -2188,13 +2194,14 @@ const Music = (() => {
       master.gain.setTargetAtTime(baseLevel * v, t, .05);
     },
     // name: 'menu' | 'battle' | null — плавно переключает мелодию
-    play(name) {
+    play(name, battleId) {
       if (name === cur && on) return;
       api.stop();
       if (!name || !ensureAC()) return;
       on = true; cur = name;
       const battle = name === 'battle';
-      if (battle) pickTrack(false);
+      // новый трек — только для нового боя (после сворачивания приложения играет тот же)
+      if (battle && battleId !== api.battleId) { api.battleId = battleId; pickTrack(); }
       E = battle ? TR.E : .2;
       const a = AC;
       master = a.createGain();
@@ -2228,7 +2235,7 @@ const Music = (() => {
 function updateMusic() {
   const ok = musicVol > 0 && audioUnlocked && !document.hidden && !appPaused;
   const song = !ok ? null : (G.phase === 'menu' || G.phase === 'placing') ? 'menu' : G.phase === 'playing' ? 'battle' : null;
-  Music.play(song);
+  Music.play(song, G.doodleSeed);
 }
 document.addEventListener('visibilitychange', updateMusic);
 
@@ -2364,129 +2371,185 @@ function renderAll() {
 /* =========================================================
    Школьные каракули карандашом (каждый бой — свои)
    ========================================================= */
+// только обычные буквы, цифры и знаки — без символов, которых нет в рукописном шрифте
 const DOODLE_TEXTS = [
-  'Домашка: упр. 247, 248', 'не забыть сменку!!', '2 + 2 = 4', 'x² − 4 = 0  →  x = ±2', 'контрольная в пятницу :(',
-  'скоро каникулы!!!', 'тут был Петя', 'МОРСКОЙ ФЛОТ — СИЛА!', 'до звонка 5 минут', 'дневник на подпись',
-  'a² + b² = c²', 'ПОБЕДА БУДЕТ ЗА НАМИ!', 'кто прочитал — тот юнга', 'π ≈ 3,14', 'Вася + ? = ♥', 'не списывать!',
+  'Домашка: упр. 247, 248', 'не забыть сменку!!', '2 + 2 = 4', '25 + 17 = 42', 'контрольная в пятницу :(',
+  'скоро каникулы!!!', 'тут был Петя', 'МОРСКОЙ ФЛОТ - СИЛА!', 'до звонка 5 минут', 'дневник на подпись',
+  'ПОБЕДА БУДЕТ ЗА НАМИ!', 'кто прочитал - тот юнга', 'Пи = 3,14', 'не списывать!', 'Вася + Маша = ?',
+  'выучить стих к среде', 'сегодня дежурю', 'по русскому - упр. 15',
 ];
-// рисунки в квадрате s×s; P(x, y) — точка в долях квадрата
+// рисунки в квадрате s×s цветными карандашами; P(x, y) — точка в долях квадрата
+// S(g, d, col, A) — штрих карандашом цвета col; H(g, d, col, s, R) — штриховка внутри фигуры d
+let doodleUid = 0;
+function dS(g, d, col, A) { return stroke(g, d, 'doodle c-' + (col || 'gr'), A); }
+function dH(g, d, col, s, R, step) {
+  const id = 'dh' + (++doodleUid);
+  const defs = g.ownerSVGElement.querySelector('defs');
+  const cp = mk('clipPath', { id }, defs);
+  mk('path', { d: d + 'Z' }, cp);
+  const hg = mk('g', { 'clip-path': `url(#${id})` }, g);
+  let h = '';
+  const st = s * (step || .07);
+  for (let x = -s; x < s; x += st) h += line(x, s, x + s, 0, R, s * .01, 0);
+  mk('path', { d: h, class: 'doodle hatch c-' + col }, hg);
+}
 const DOODLES = {
   sun(g, s, R, A) {
     const P = (x, y) => [x * s, y * s];
-    stroke(g, blob(...P(.5, .5), s * .2, R, 1.08, .08), 'doodle', A());
+    const disc = blob(...P(.5, .5), s * .2, R, 1.02, .06);
+    dH(g, disc, 'ye', s, R);
+    dS(g, disc, 'or', A());
     let d = '';
     for (let k = 0; k < 10; k++) { const a = k / 10 * Math.PI * 2; d += line(...P(.5 + Math.cos(a) * .28, .5 + Math.sin(a) * .28), ...P(.5 + Math.cos(a) * .44, .5 + Math.sin(a) * .44), R, .6, 0); }
-    stroke(g, d, 'doodle', A());
+    dS(g, d, 'or', A());
   },
   smiley(g, s, R, A) {
     const P = (x, y) => [x * s, y * s];
-    stroke(g, blob(...P(.5, .5), s * .38, R, 1.06, .06), 'doodle', A());
-    mk('path', { d: blob(...P(.37, .42), s * .04, R) + 'Z', class: 'doodle fillp' }, g);
-    mk('path', { d: blob(...P(.63, .42), s * .04, R) + 'Z', class: 'doodle fillp' }, g);
-    stroke(g, smooth([P(.32, .6), P(.42, .7), P(.58, .7), P(.68, .6)]), 'doodle', A());
+    const face = blob(...P(.5, .5), s * .38, R, 1.02, .05);
+    dH(g, face, 'ye', s, R, .09);
+    dS(g, face, 'or', A());
+    dS(g, blob(...P(.37, .42), s * .035, R, 1.6, .2) + blob(...P(.63, .42), s * .035, R, 1.6, .2), 'gr', A());
+    dS(g, smooth([P(.32, .6), P(.42, .7), P(.58, .7), P(.68, .6)]), 'rd', A());
   },
   cat(g, s, R, A) {
     const P = (x, y) => [x * s, y * s];
-    stroke(g, blob(...P(.5, .6), s * .28, R, 1.05, .07), 'doodle', A());
-    stroke(g, smooth([P(.28, .45), P(.3, .2), P(.44, .36)]) + smooth([P(.56, .36), P(.7, .2), P(.72, .45)]), 'doodle', A());
-    mk('path', { d: blob(...P(.41, .55), s * .03, R) + 'Z', class: 'doodle fillp' }, g);
-    mk('path', { d: blob(...P(.59, .55), s * .03, R) + 'Z', class: 'doodle fillp' }, g);
-    stroke(g, line(...P(.2, .62), ...P(.4, .66), R, .3, 0) + line(...P(.2, .72), ...P(.4, .7), R, .3, 0)
-      + line(...P(.6, .66), ...P(.8, .62), R, .3, 0) + line(...P(.6, .7), ...P(.8, .72), R, .3, 0)
-      + smooth([P(.45, .68), P(.5, .72), P(.55, .68)]), 'doodle', A());
+    const head = blob(...P(.5, .6), s * .28, R, 1.02, .06);
+    dH(g, head, 'or', s, R, .08);
+    dS(g, head, 'br', A());
+    dS(g, smooth([P(.28, .45), P(.3, .2), P(.44, .36)]) + smooth([P(.56, .36), P(.7, .2), P(.72, .45)]), 'br', A());
+    dS(g, blob(...P(.41, .55), s * .03, R, 1.6, .2) + blob(...P(.59, .55), s * .03, R, 1.6, .2), 'gn', A());
+    dS(g, line(...P(.2, .62), ...P(.4, .66), R, .3, 0) + line(...P(.2, .72), ...P(.4, .7), R, .3, 0)
+      + line(...P(.6, .66), ...P(.8, .62), R, .3, 0) + line(...P(.6, .7), ...P(.8, .72), R, .3, 0), 'gr', A());
+    dS(g, smooth([P(.45, .68), P(.5, .72), P(.55, .68)]), 'rd', A());
   },
   house(g, s, R, A) {
     const P = (x, y) => [x * s, y * s];
-    stroke(g, rect(...P(.2, .48), .6 * s, .42 * s, R, .8), 'doodle', A());
-    stroke(g, line(...P(.12, .5), ...P(.5, .14), R, .8, .03) + line(...P(.5, .14), ...P(.88, .5), R, .8, .03), 'doodle', A());
-    stroke(g, rect(...P(.44, .66), .14 * s, .24 * s, R, .5) + rect(...P(.25, .56), .12 * s, .12 * s, R, .5), 'doodle', A());
-    stroke(g, rect(...P(.65, .2), .08 * s, .16 * s, R, .4), 'doodle', A());
-    stroke(g, blob(...P(.72, .08), s * .05, R, 1.6, .2), 'doodle', A());
+    const roof = `M${f(.12 * s)} ${f(.5 * s)}L${f(.5 * s)} ${f(.14 * s)}L${f(.88 * s)} ${f(.5 * s)}`;
+    dH(g, roof, 'rd', s, R, .06);
+    dS(g, line(...P(.12, .5), ...P(.5, .14), R, .8, .03) + line(...P(.5, .14), ...P(.88, .5), R, .8, .03) + line(...P(.12, .5), ...P(.88, .5), R, .6, 0), 'rd', A());
+    dS(g, rect(...P(.2, .5), .6 * s, .4 * s, R, .8), 'br', A());
+    const win = `M${f(.25 * s)} ${f(.58 * s)}h${f(.12 * s)}v${f(.12 * s)}h${f(-.12 * s)}`;
+    dH(g, win, 'bl', s, R, .05);
+    dS(g, rect(...P(.25, .58), .12 * s, .12 * s, R, .4), 'bl', A());
+    dS(g, rect(...P(.46, .66), .14 * s, .24 * s, R, .4), 'br', A());
+    dS(g, rect(...P(.65, .2), .08 * s, .16 * s, R, .4), 'br', A());
+    dS(g, blob(...P(.72, .08), s * .05, R, 1.6, .2), 'gr', A());
   },
   flower(g, s, R, A) {
     const P = (x, y) => [x * s, y * s];
-    stroke(g, smooth([P(.5, .95), P(.47, .75), P(.52, .55), P(.5, .42)]), 'doodle', A());
-    stroke(g, smooth([P(.49, .75), P(.33, .66), P(.3, .72), P(.49, .78)]), 'doodle', A());
-    for (let k = 0; k < 6; k++) { const a = k / 6 * Math.PI * 2; stroke(g, blob(...P(.5 + Math.cos(a) * .14, .3 + Math.sin(a) * .14), s * .09, R, 1.05, .1), 'doodle', A()); }
-    stroke(g, blob(...P(.5, .3), s * .06, R, 1.5, .1), 'doodle', A());
+    dS(g, smooth([P(.5, .95), P(.47, .75), P(.52, .55), P(.5, .42)]), 'gn', A());
+    const leaf = smooth([P(.49, .75), P(.33, .66), P(.3, .72), P(.49, .78)]);
+    dH(g, leaf, 'gn', s, R, .05);
+    dS(g, leaf, 'gn', A());
+    const pc = R() < .5 ? 'rd' : 'pu';
+    for (let k = 0; k < 6; k++) {
+      const a = k / 6 * Math.PI * 2, p = blob(...P(.5 + Math.cos(a) * .14, .3 + Math.sin(a) * .14), s * .09, R, 1.02, .1);
+      dH(g, p, pc, s, R, .06);
+      dS(g, p, pc, A());
+    }
+    const c = blob(...P(.5, .3), s * .06, R, 1.02, .1);
+    dH(g, c, 'ye', s, R, .04);
+    dS(g, c, 'or', A());
   },
   star(g, s, R, A) {
     const pts = [];
     for (let k = 0; k <= 10; k++) { const a = -Math.PI / 2 + k * Math.PI / 5, r = (k % 2 ? .19 : .44) * s; pts.push([s * .5 + Math.cos(a) * r, s * .52 + Math.sin(a) * r]); }
+    const outline = 'M' + pts.map(p => f(p[0]) + ' ' + f(p[1])).join('L');
+    dH(g, outline, 'ye', s, R);
     let d = ''; for (let k = 0; k < 10; k++) d += line(pts[k][0], pts[k][1], pts[k + 1][0], pts[k + 1][1], R, .6, .05);
-    stroke(g, d, 'doodle', A());
+    dS(g, d, 'or', A());
   },
   heart(g, s, R, A) {
     const P = (x, y) => [x * s, y * s];
-    stroke(g, smooth([P(.5, .85), P(.2, .55), P(.16, .32), P(.32, .2), P(.5, .34), P(.68, .2), P(.84, .32), P(.8, .55), P(.5, .85)]), 'doodle red', A());
+    const d = smooth([P(.5, .85), P(.2, .55), P(.16, .32), P(.32, .2), P(.5, .34), P(.68, .2), P(.84, .32), P(.8, .55), P(.5, .85)]);
+    dH(g, d, 'rd', s, R, .06);
+    dS(g, d, 'rd', A());
   },
   stickman(g, s, R, A) {
     const P = (x, y) => [x * s, y * s];
-    stroke(g, blob(...P(.5, .18), s * .1, R, 1.05, .06), 'doodle', A());
-    stroke(g, line(...P(.5, .28), ...P(.5, .6), R, .5, 0) + line(...P(.28, .36), ...P(.5, .42), R, .5, 0) + line(...P(.5, .42), ...P(.74, .3), R, .5, 0)
-      + line(...P(.5, .6), ...P(.34, .9), R, .5, 0) + line(...P(.5, .6), ...P(.66, .9), R, .5, 0), 'doodle', A());
-    stroke(g, line(...P(.74, .3), ...P(.8, .1), R, .4, 0) + smooth([P(.8, .1), P(.92, .14), P(.8, .2)]), 'doodle red', A());   // флажок
+    dS(g, blob(...P(.5, .18), s * .1, R, 1.05, .06), 'gr', A());
+    dS(g, line(...P(.5, .28), ...P(.5, .6), R, .5, 0) + line(...P(.28, .36), ...P(.5, .42), R, .5, 0) + line(...P(.5, .42), ...P(.74, .3), R, .5, 0)
+      + line(...P(.5, .6), ...P(.34, .9), R, .5, 0) + line(...P(.5, .6), ...P(.66, .9), R, .5, 0), 'gr', A());
+    dS(g, line(...P(.74, .3), ...P(.8, .1), R, .4, 0), 'br', A());
+    const flag = smooth([P(.8, .1), P(.93, .14), P(.8, .2)]);
+    dH(g, flag, 'rd', s, R, .04);
+    dS(g, flag, 'rd', A());
   },
   rocket(g, s, R, A) {
     const P = (x, y) => [x * s, y * s];
-    stroke(g, smooth([P(.5, .06), P(.64, .3), P(.62, .66), P(.38, .66), P(.36, .3), P(.5, .06)]), 'doodle', A());
-    stroke(g, blob(...P(.5, .34), s * .07, R, 1.05, .05), 'doodle', A());
-    stroke(g, smooth([P(.38, .52), P(.24, .7), P(.38, .66)]) + smooth([P(.62, .52), P(.76, .7), P(.62, .66)]), 'doodle', A());
-    stroke(g, line(...P(.42, .7), ...P(.46, .86), R, .4, 0) + line(...P(.5, .7), ...P(.5, .94), R, .4, 0) + line(...P(.58, .7), ...P(.54, .86), R, .4, 0), 'doodle red', A());
+    const body = smooth([P(.5, .06), P(.64, .3), P(.62, .66), P(.38, .66), P(.36, .3), P(.5, .06)]);
+    dH(g, body, 'bl', s, R, .09);
+    dS(g, body, 'bl', A());
+    dS(g, blob(...P(.5, .34), s * .07, R, 1.05, .05), 'gr', A());
+    dS(g, smooth([P(.38, .52), P(.24, .7), P(.38, .66)]) + smooth([P(.62, .52), P(.76, .7), P(.62, .66)]), 'rd', A());
+    dS(g, line(...P(.42, .7), ...P(.46, .86), R, .4, 0) + line(...P(.5, .7), ...P(.5, .94), R, .4, 0) + line(...P(.58, .7), ...P(.54, .86), R, .4, 0), 'or', A());
   },
   fish(g, s, R, A) {
     const P = (x, y) => [x * s, y * s];
-    stroke(g, smooth([P(.2, .5), P(.4, .32), P(.62, .36), P(.72, .5), P(.62, .64), P(.4, .68), P(.2, .5)]), 'doodle', A());
-    stroke(g, line(...P(.72, .5), ...P(.9, .36), R, .4, 0) + line(...P(.9, .36), ...P(.88, .64), R, .4, 0) + line(...P(.88, .64), ...P(.72, .5), R, .4, 0), 'doodle', A());
-    mk('path', { d: blob(...P(.3, .47), s * .025, R) + 'Z', class: 'doodle fillp' }, g);
-    stroke(g, blob(...P(.12, .3), s * .04, R) + blob(...P(.08, .16), s * .03, R), 'doodle', A());
+    const body = smooth([P(.2, .5), P(.4, .32), P(.62, .36), P(.72, .5), P(.62, .64), P(.4, .68), P(.2, .5)]);
+    dH(g, body, 'bl', s, R, .07);
+    dS(g, body, 'bl', A());
+    const tail = `M${f(.72 * s)} ${f(.5 * s)}L${f(.9 * s)} ${f(.36 * s)}L${f(.88 * s)} ${f(.64 * s)}`;
+    dH(g, tail, 'or', s, R, .05);
+    dS(g, line(...P(.72, .5), ...P(.9, .36), R, .4, 0) + line(...P(.9, .36), ...P(.88, .64), R, .4, 0) + line(...P(.88, .64), ...P(.72, .5), R, .4, 0), 'or', A());
+    dS(g, blob(...P(.3, .47), s * .025, R, 1.6, .2), 'gr', A());
+    dS(g, blob(...P(.12, .3), s * .04, R) + blob(...P(.08, .16), s * .03, R), 'bl', A());
   },
   sailboat(g, s, R, A) {
     const P = (x, y) => [x * s, y * s];
-    stroke(g, smooth([P(.14, .66), P(.3, .82), P(.7, .82), P(.88, .66)]) + line(...P(.14, .66), ...P(.88, .66), R, .5, 0), 'doodle', A());
-    stroke(g, line(...P(.5, .66), ...P(.5, .1), R, .4, 0) + line(...P(.5, .12), ...P(.82, .58), R, .5, 0) + line(...P(.82, .58), ...P(.5, .58), R, .4, 0), 'doodle', A());
+    const hull = smooth([P(.14, .66), P(.3, .82), P(.7, .82), P(.88, .66), P(.14, .66)]);
+    dH(g, hull, 'br', s, R, .06);
+    dS(g, hull, 'br', A());
+    dS(g, line(...P(.5, .66), ...P(.5, .1), R, .4, 0), 'br', A());
+    const sail = `M${f(.52 * s)} ${f(.12 * s)}L${f(.82 * s)} ${f(.58 * s)}L${f(.52 * s)} ${f(.58 * s)}`;
+    dH(g, sail, 'rd', s, R, .07);
+    dS(g, line(...P(.5, .12), ...P(.82, .58), R, .5, 0) + line(...P(.82, .58), ...P(.5, .58), R, .4, 0), 'rd', A());
     let w = `M${f(.05 * s)} ${f(.92 * s)}`; for (let k = 0; k < 5; k++) w += ` q${f(.09 * s)} ${f(-.06 * s)} ${f(.18 * s)} 0`;
-    stroke(g, w, 'doodle', A());
+    dS(g, w, 'bl', A());
   },
   cloud(g, s, R, A) {
     const P = (x, y) => [x * s, y * s];
-    stroke(g, smooth([P(.18, .62), P(.14, .48), P(.3, .4), P(.38, .28), P(.56, .26), P(.66, .38), P(.82, .4), P(.88, .54), P(.78, .64), P(.18, .62)]), 'doodle', A());
+    const c = smooth([P(.18, .62), P(.14, .48), P(.3, .4), P(.38, .28), P(.56, .26), P(.66, .38), P(.82, .4), P(.88, .54), P(.78, .64), P(.18, .62)]);
+    dH(g, c, 'sk', s, R, .08);
+    dS(g, c, 'bl', A());
     let d = ''; for (let k = 0; k < 5; k++) d += line(...P(.28 + k * .12, .72), ...P(.24 + k * .12, .86), R, .3, 0);
-    stroke(g, d, 'doodle', A());
+    dS(g, d, 'bl', A());
   },
   spiral(g, s, R, A) {
     const pts = [];
     for (let k = 0; k < 40; k++) { const a = k * .45, r = s * (.03 + k * .011); pts.push([s * .5 + Math.cos(a) * r, s * .5 + Math.sin(a) * r]); }
-    stroke(g, smooth(pts), 'doodle', A());
+    dS(g, smooth(pts), 'pu', A());
   },
   cube(g, s, R, A) {
     const P = (x, y) => [x * s, y * s];
-    stroke(g, rect(...P(.15, .35), .45 * s, .45 * s, R, .5), 'doodle', A());
-    stroke(g, rect(...P(.38, .15), .45 * s, .45 * s, R, .5), 'doodle', A());
-    stroke(g, line(...P(.15, .35), ...P(.38, .15), R, .3, 0) + line(...P(.6, .35), ...P(.83, .15), R, .3, 0)
-      + line(...P(.15, .8), ...P(.38, .6), R, .3, 0) + line(...P(.6, .8), ...P(.83, .6), R, .3, 0), 'doodle', A());
+    const top = `M${f(.15 * s)} ${f(.35 * s)}L${f(.38 * s)} ${f(.15 * s)}L${f(.83 * s)} ${f(.15 * s)}L${f(.6 * s)} ${f(.35 * s)}`;
+    dH(g, top, 'gn', s, R, .06);
+    dS(g, rect(...P(.15, .35), .45 * s, .45 * s, R, .5), 'gn', A());
+    dS(g, rect(...P(.38, .15), .45 * s, .45 * s, R, .5), 'gn', A());
+    dS(g, line(...P(.15, .35), ...P(.38, .15), R, .3, 0) + line(...P(.6, .35), ...P(.83, .15), R, .3, 0)
+      + line(...P(.15, .8), ...P(.38, .6), R, .3, 0) + line(...P(.6, .8), ...P(.83, .6), R, .3, 0), 'gn', A());
   },
   tictactoe(g, s, R, A) {
     const P = (x, y) => [x * s, y * s];
-    stroke(g, line(...P(.38, .1), ...P(.36, .9), R, .6, .04) + line(...P(.64, .1), ...P(.62, .9), R, .6, .04)
-      + line(...P(.1, .37), ...P(.9, .36), R, .6, .04) + line(...P(.1, .63), ...P(.9, .62), R, .6, .04), 'doodle', A());
+    dS(g, line(...P(.38, .1), ...P(.36, .9), R, .6, .04) + line(...P(.64, .1), ...P(.62, .9), R, .6, .04)
+      + line(...P(.1, .37), ...P(.9, .36), R, .6, .04) + line(...P(.1, .63), ...P(.9, .62), R, .6, .04), 'gr', A());
     const X = (cx, cy) => line(...P(cx - .08, cy - .08), ...P(cx + .08, cy + .08), R, .3, 0) + line(...P(cx + .08, cy - .08), ...P(cx - .08, cy + .08), R, .3, 0);
-    stroke(g, X(.23, .23) + X(.5, .5) + X(.77, .77), 'doodle', A());
-    stroke(g, blob(...P(.77, .23), s * .08, R) + blob(...P(.23, .77), s * .08, R), 'doodle', A());
-    stroke(g, line(...P(.12, .12), ...P(.88, .88), R, .5, .05), 'doodle red', A());
+    dS(g, X(.23, .23) + X(.5, .5) + X(.77, .77), 'bl', A());
+    dS(g, blob(...P(.77, .23), s * .08, R) + blob(...P(.23, .77), s * .08, R), 'rd', A());
+    dS(g, line(...P(.12, .12), ...P(.88, .88), R, .5, .05), 'bl', A());
   },
   anchor(g, s, R, A) {
     const P = (x, y) => [x * s, y * s];
-    stroke(g, blob(...P(.5, .14), s * .07, R, 1.05, .05), 'doodle', A());
-    stroke(g, line(...P(.5, .21), ...P(.5, .86), R, .4, 0) + line(...P(.32, .32), ...P(.68, .32), R, .4, 0), 'doodle', A());
-    stroke(g, smooth([P(.18, .6), P(.26, .82), P(.5, .88), P(.74, .82), P(.82, .6)]), 'doodle', A());
-    stroke(g, line(...P(.18, .6), ...P(.12, .7), R, .3, 0) + line(...P(.82, .6), ...P(.88, .7), R, .3, 0), 'doodle', A());
+    dS(g, blob(...P(.5, .14), s * .07, R, 1.05, .05), 'bl', A());
+    dS(g, line(...P(.5, .21), ...P(.5, .86), R, .4, 0) + line(...P(.32, .32), ...P(.68, .32), R, .4, 0), 'bl', A());
+    dS(g, smooth([P(.18, .6), P(.26, .82), P(.5, .88), P(.74, .82), P(.82, .6)]), 'bl', A());
+    dS(g, line(...P(.18, .6), ...P(.12, .7), R, .3, 0) + line(...P(.82, .6), ...P(.88, .7), R, .3, 0), 'bl', A());
   },
-  grade(g, s, R, A) {           // «пятёрка» от учителя
+  grade(g, s, R, A) {           // «пятёрка» красным карандашом от учителя — цифра нарисована штрихами
     const P = (x, y) => [x * s, y * s];
-    stroke(g, blob(...P(.5, .5), s * .36, R, 1.12, .08), 'doodle red', A());
-    const t = mk('text', { x: s * .5, y: s * .66, 'text-anchor': 'middle', 'font-size': s * .5, class: 'doodle-text red' }, g);
-    t.textContent = '5';
+    dS(g, blob(...P(.5, .5), s * .36, R, 1.12, .08), 'rd', A());
+    dS(g, line(...P(.6, .3), ...P(.42, .3), R, .4, 0) + line(...P(.42, .3), ...P(.4, .48), R, .4, 0)
+      + smooth([P(.4, .48), P(.5, .44), P(.6, .5), P(.6, .62), P(.5, .7), P(.4, .66)]), 'rd', A());
   },
 };
 function renderDoodles() {
@@ -2498,10 +2561,21 @@ function renderDoodles() {
   const W = sh.width, H = sh.height;
   svg.setAttribute('width', W); svg.setAttribute('height', H);
   svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+  // текстура карандаша: лёгкое дрожание линии + зерно грифеля (рваный штрих)
+  const sd = G.doodleSeed % 97;
+  mk('defs', {}, svg).innerHTML =
+    `<filter id="pencilTex" x="-15%" y="-15%" width="130%" height="130%" color-interpolation-filters="sRGB">
+      <feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" seed="${sd}" result="n"/>
+      <feDisplacementMap in="SourceGraphic" in2="n" scale="2.4" xChannelSelector="R" yChannelSelector="G" result="d"/>
+      <feTurbulence type="fractalNoise" baseFrequency="2.1" numOctaves="1" seed="${sd + 7}" result="g"/>
+      <feColorMatrix in="g" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 -2.2 1.75" result="ga"/>
+      <feComposite in="d" in2="ga" operator="in"/>
+    </filter>`;
   const pad = C * .3;
   // запретные зоны: шапка, статус, поля, флот в колонке, поля «Готов» — в координатах листа
   const ex = [];
-  ['.title', '.tools', '#status > span', '#sideMe', '#sideEn', '#sideFleets'].forEach(sel => {
+  // статус — вся строка целиком: его текст меняется по ходу боя и может стать длиннее
+  ['.title', '.tools', '#status', '#sideMe', '#sideEn', '#sideFleets'].forEach(sel => {
     const el = $(sel);
     if (!el || !el.offsetParent) return;
     const r = el.getBoundingClientRect();
@@ -2516,27 +2590,49 @@ function renderDoodles() {
   let delay = .3;
   const A = () => anim ? { delay: (delay += .12), dur: .5 } : null;
   const placed = [];
-  const fits = (x, y, w, h) => x >= 8 && y >= 8 && x + w <= W - C * 1.3 && y + h <= H - 8 &&
-    !ex.concat(placed).some(r => x < r.x + r.w && x + w > r.x && y < r.y + r.h && y + h > r.y);
+  const GAP = Math.max(10, C * .35);                       // гарантированный зазор между каракулями
+  const hit = (a, b) => a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
+  const fits = box => box.x >= 8 && box.y >= 8 && box.x + box.w <= W - C * 1.3 && box.y + box.h <= H - 8 &&
+    !ex.some(r => hit(box, r)) && !placed.some(r => hit(box, r));
   const shuffle = arr => { const a = arr.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(R() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
-  const kinds = shuffle(Object.keys(DOODLES)), texts = shuffle(DOODLE_TEXTS).slice(0, 3);
+  // на больших экранах — поменьше каракулей
+  const maxItems = W >= 1000 ? 5 : 7;
+  const kinds = shuffle(Object.keys(DOODLES)), texts = shuffle(DOODLE_TEXTS).slice(0, 2);
   const items = [];
-  for (let i = 0; i < 9; i++) items.push(i % 3 === 1 && texts.length ? { text: texts.pop() } : { kind: kinds[i] });
+  for (let i = 0; i < maxItems + 2; i++) items.push(i % 3 === 1 && texts.length ? { text: texts.pop() } : { kind: kinds[i] });
+  let count = 0;
   items.forEach(it => {
-    let w, h, fs = 0;
-    if (it.text) { fs = C * (.62 + R() * .22); w = it.text.length * fs * .46; h = fs * 1.3; }
-    else { w = h = C * (2.1 + R() * 1.4); }
-    for (let t = 0; t < 70; t++) {
-      const x = R() * (W - w), y = R() * (H - h);
-      if (!fits(x, y, w, h)) continue;
-      placed.push({ x: x - 6, y: y - 6, w: w + 12, h: h + 12 });
-      const rot = (R() - .5) * (it.text ? 14 : 24);
-      const g = mk('g', { transform: `translate(${f(x)} ${f(y)}) rotate(${f(rot)} ${f(w / 2)} ${f(h / 2)})` }, svg);
+    if (count >= maxItems) return;
+    // настоящий размер: надпись измеряем, рисунок — квадрат
+    let w, h, fs = 0, probe = null;
+    if (it.text) {
+      fs = C * (.62 + R() * .22);
+      probe = mk('text', { x: 0, y: 0, 'font-size': fs, class: 'doodle-text', opacity: 0 }, svg);
+      probe.textContent = it.text;
+      let bb; try { bb = probe.getBBox(); } catch (e) { bb = null; }
+      w = (bb && bb.width) || it.text.length * fs * .55;
+      h = fs * 1.35;
+      probe.remove();
+    } else w = h = C * (2.1 + R() * 1.3);
+    const rot = (R() - .5) * (it.text ? 12 : 22);
+    const rad = Math.abs(rot) * Math.PI / 180;
+    // габарит повёрнутого элемента + зазор
+    const bw = w * Math.cos(rad) + h * Math.sin(rad), bh = w * Math.sin(rad) + h * Math.cos(rad);
+    for (let t = 0; t < 90; t++) {
+      const box = { x: R() * (W - bw), y: R() * (H - bh), w: bw, h: bh };
+      const padded = { x: box.x - GAP / 2, y: box.y - GAP / 2, w: box.w + GAP, h: box.h + GAP };
+      if (!fits(padded)) continue;
+      placed.push(padded);
+      count++;
+      const cx = box.x + bw / 2, cy = box.y + bh / 2;
+      const g = mk('g', { transform: `translate(${f(cx)} ${f(cy)}) rotate(${f(rot)}) translate(${f(-w / 2)} ${f(-h / 2)})`, filter: 'url(#pencilTex)' }, svg);
       if (it.text) {
+        const col = ['gr', 'gr', 'bl', 'pu', 'gn'][Math.floor(R() * 5)];
+        g.setAttribute('class', 'c-' + col);
         const el = mk('text', { x: 0, y: fs, 'font-size': fs, class: 'doodle-text' + (anim ? ' fadein' : '') }, g);
         el.textContent = it.text;
         if (anim) el.style.animationDelay = (delay += .15) + 's';
-        if (R() < .5) stroke(g, line(0, fs * 1.18, w * .9, fs * 1.12, R, .8, 0), 'doodle', A());   // подчёркнуто
+        if (R() < .5) stroke(g, line(0, fs * 1.2, w * .95, fs * 1.15, R, .8, 0), 'doodle c-' + col, A());   // подчёркнуто
       } else DOODLES[it.kind](g, w, R, A);
       break;
     }
