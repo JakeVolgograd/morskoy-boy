@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
 <meta name="theme-color" content="#fdfcf6">
-<meta name="game-version" content="9">
+<meta name="game-version" content="10">
 <title>Морской бой</title>
 <link rel="icon" id="favicon" href="icon.ico">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -1946,19 +1946,41 @@ const Music = (() => {
   for (let i = 0, s = 0; i < MEL.length; i += 2) { melAt[s] = [MEL[i], MEL[i + 1]]; s += MEL[i + 1]; }
   const CH = { Dm: [50, [62, 65, 69]], C: [48, [60, 64, 67]], Bb: [46, [58, 62, 65]], F: [41, [60, 65, 69]], Gm: [43, [62, 67, 70]], A: [45, [61, 64, 69]] };
   const BARS = ['Dm', 'Dm', 'C', 'C', 'Bb', 'F', 'Gm', 'A', 'F', 'C', 'Dm', 'A', 'Bb', 'F', ['Gm', 'A'], 'Dm'];
-  // боевая тема: 8 тактов по 8 восьмых
-  const BMEL = [
-    69,2, 72,1, 76,1, 81,2, 79,1, 76,1,   76,2, 74,1, 72,1, 74,2, 76,2,
-    77,2, 76,1, 74,1, 72,2, 69,2,         71,2, 72,1, 74,1, 79,4,
-    81,2, 79,1, 76,1, 72,2, 76,1, 79,1,   81,3, 79,1, 76,2, 72,2,
-    74,2, 77,1, 81,1, 79,2, 77,2,         76,2, 68,1, 71,1, 76,4,
+  // ---- боевые треки: в каждом бою случайный, после 3 повторов — следующий ----
+  // mel: пары [нота MIDI, длительность в шагах]; beats — шагов в такте; ch — аккорды [бас, трезвучие]
+  const TRACKS = [
+    { name: 'Марш', E: .23, beats: 8, lead: 'brass', bassPat: [0, 0, 12, 0, 7, 0, 12, 7], drums: 'march',
+      bars: ['Am', 'Am', 'F', 'G', 'Am', 'Am', 'Dm', 'E'],
+      ch: { Am: [45, [57, 60, 64]], F: [41, [53, 57, 60]], G: [43, [55, 59, 62]], Dm: [38, [50, 53, 57]], E: [40, [52, 56, 59]] },
+      mel: [69,2, 72,1, 76,1, 81,2, 79,1, 76,1,  76,2, 74,1, 72,1, 74,2, 76,2,  77,2, 76,1, 74,1, 72,2, 69,2,  71,2, 72,1, 74,1, 79,4,
+            81,2, 79,1, 76,1, 72,2, 76,1, 79,1,  81,3, 79,1, 76,2, 72,2,  74,2, 77,1, 81,1, 79,2, 77,2,  76,2, 68,1, 71,1, 76,4] },
+    { name: 'Погоня', E: .18, beats: 8, lead: 'square', bassPat: [0, 12, 0, 12, 0, 12, 7, 12], drums: 'chase',
+      bars: ['Em', 'Em', 'C', 'D', 'Em', 'Em', 'C', 'B'],
+      ch: { Em: [40, [64, 67, 71]], C: [36, [60, 64, 67]], D: [38, [62, 66, 69]], B: [35, [59, 63, 66]] },
+      mel: [76,1, 79,1, 83,2, 81,1, 79,1, 76,2,  74,1, 76,1, 79,2, 78,2, 76,2,  72,1, 76,1, 79,2, 84,2, 83,2,  81,2, 78,1, 74,1, 78,4,
+            83,1, 81,1, 79,1, 76,1, 79,2, 83,2,  88,3, 86,1, 83,2, 79,2,  84,2, 83,1, 81,1, 79,2, 76,2,  78,2, 75,2, 71,2, 78,2] },
+    { name: 'Шторм', E: .25, beats: 8, lead: 'brass', bassPat: [0, 0, 0, 0, 0, 0, 7, 12], drums: 'storm',
+      bars: ['Dm', 'Bb', 'F', 'C', 'Dm', 'Bb', 'Gm', 'A'],
+      ch: { Dm: [38, [62, 65, 69]], Bb: [34, [58, 62, 65]], F: [41, [57, 60, 65]], C: [36, [60, 64, 67]], Gm: [43, [55, 58, 62]], A: [33, [57, 61, 64]] },
+      mel: [74,4, 77,2, 76,2,  74,3, 72,1, 70,4,  72,4, 69,2, 72,2,  76,6, 74,2,
+            81,4, 79,2, 77,2,  77,3, 76,1, 74,4,  74,2, 76,2, 77,2, 79,2,  76,4, 73,4] },
+    { name: 'Абордаж', E: .17, beats: 6, lead: 'accordion', bassPat: 'oompah', drums: 'jig',
+      bars: ['Am', 'G', 'Am', 'E', 'Am', 'G', 'F', 'E'],
+      ch: { Am: [45, [57, 60, 64]], G: [43, [55, 59, 62]], F: [41, [57, 60, 65]], E: [40, [56, 59, 64]] },
+      mel: [76,1, 77,1, 76,1, 74,1, 72,2,  71,1, 72,1, 74,1, 79,3,  76,1, 77,1, 76,1, 74,1, 72,1, 69,1,  71,3, 68,3,
+            81,2, 79,1, 77,2, 76,1,  74,2, 79,1, 74,2, 71,1,  72,1, 74,1, 76,1, 77,2, 74,1,  71,3, 76,3] },
   ];
-  const BSTEPS = 64;
-  const bMelAt = Array(BSTEPS).fill(null);
-  for (let i = 0, s = 0; i < BMEL.length; i += 2) { bMelAt[s] = [BMEL[i], BMEL[i + 1]]; s += BMEL[i + 1]; }
-  const BCH = { Am: [45, [57, 60, 64]], F: [41, [53, 57, 60]], G: [43, [55, 59, 62]], Dm: [38, [50, 53, 57]], E: [40, [52, 56, 59]] };
-  const BBARS = ['Am', 'Am', 'F', 'G', 'Am', 'Am', 'Dm', 'E'];
-  const BASSPAT = [0, 0, 12, 0, 7, 0, 12, 7];
+  TRACKS.forEach(tr => {
+    tr.steps = tr.bars.length * tr.beats;
+    tr.melAt = Array(tr.steps).fill(null);
+    for (let i = 0, s = 0; i < tr.mel.length; i += 2) { tr.melAt[s] = [tr.mel[i], tr.mel[i + 1]]; s += tr.mel[i + 1]; }
+  });
+  let trackIdx = -1, TR = TRACKS[0];
+  function pickTrack(next) {
+    let i = next ? (trackIdx + 1) % TRACKS.length : Math.floor(Math.random() * TRACKS.length);
+    if (!next && TRACKS.length > 1 && i === trackIdx) i = (i + 1) % TRACKS.length;   // не повторяем прошлый бой
+    trackIdx = i; TR = TRACKS[i];
+  }
 
   const mtof = n => 440 * Math.pow(2, (n - 69) / 12);
   let on = false, cur = null, E = .2, master = null, bus = null, timer = null, next = 0, step = 0, loop = 0, sea = [];
@@ -2059,18 +2081,67 @@ const Music = (() => {
     g.gain.exponentialRampToValueAtTime(.01, t + dur); g.gain.linearRampToValueAtTime(0, t + dur + .03);
     o.connect(fl).connect(g).connect(bus); o.start(t); o.stop(t + dur + .05);
   }
+  function square(t, n, dur, gain = .035) {    // «чиптюн»: короткий квадрат с быстрым затуханием
+    const a = AC, o = a.createOscillator(), g = a.createGain(), fl = a.createBiquadFilter();
+    o.type = 'square'; o.frequency.value = mtof(n);
+    fl.type = 'lowpass'; fl.frequency.value = 3200;
+    g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(gain, t + .005);
+    g.gain.exponentialRampToValueAtTime(gain * .35, t + Math.min(dur, .12));
+    g.gain.linearRampToValueAtTime(0, t + dur);
+    o.connect(fl).connect(g).connect(bus); o.start(t); o.stop(t + dur + .03);
+  }
+  function timpani(t, n, gain = .22) {           // литавра для «Шторма»
+    const a = AC, o = a.createOscillator(), g = a.createGain();
+    o.type = 'sine'; o.frequency.setValueAtTime(mtof(n) * 1.5, t); o.frequency.exponentialRampToValueAtTime(mtof(n), t + .08);
+    g.gain.setValueAtTime(gain, t); g.gain.exponentialRampToValueAtTime(.001, t + .9);
+    o.connect(g).connect(bus); o.start(t); o.stop(t + .95);
+    const s = a.createBufferSource(), fl = a.createBiquadFilter(), ng = a.createGain();
+    s.buffer = noiseBuf(a); fl.type = 'lowpass'; fl.frequency.value = 400;
+    ng.gain.setValueAtTime(gain * .5, t); ng.gain.exponentialRampToValueAtTime(.001, t + .25);
+    s.connect(fl).connect(ng).connect(bus); s.start(t, Math.random() * 2); s.stop(t + .26);
+  }
   function battleSched(s, t) {
-    const bar = Math.floor(s / 8), pos = s % 8;
-    const [root, tri] = BCH[BBARS[bar]];
-    const intro = loop === 0 && bar < 2;            // первые два такта — только барабаны и бас
-    const m = bMelAt[s];
-    if (m && !intro) { brass(t, m[0], m[1] * E * .9); if (loop % 2) brass(t, m[0] - 12, m[1] * E * .9, .025); }
-    pluckBass(t, root + BASSPAT[pos], E * .85);
-    if (pos === 0 && !intro) pad(t, tri, E * 8);
-    if (pos === 0 || pos === 4) kick(t);
-    if (pos === 2 || pos === 6) snare(t);
-    if (pos % 2 === 1) hat(t);
-    if (bar === 7 && pos >= 5) { snare(t + E / 2, .05); }  // дробь перед повтором
+    const B = TR.beats, bar = Math.floor(s / B), pos = s % B, last = bar === TR.bars.length - 1;
+    const [root, tri] = TR.ch[TR.bars[bar]];
+    const intro = loop === 0 && bar < 2;            // первые два такта — только ритм и бас
+    const m = TR.melAt[s];
+    if (m && !intro) {
+      const dur = m[1] * E * .9;
+      if (TR.lead === 'brass') { brass(t, m[0], dur); if (loop % 2) brass(t, m[0] - 12, dur, .025); }
+      else if (TR.lead === 'square') { square(t, m[0], dur); if (loop % 2) square(t, m[0] + 12, dur * .8, .015); }
+      else { lead(t, m[0], m[1] * E * .92); if (loop % 2) whistle(t, m[0] + 12, m[1] * E * .85); }
+    }
+    // бас
+    if (TR.bassPat === 'oompah') {
+      if (pos === 0) bass(t, root, E * 2.6);
+      if (pos === 3) bass(t, root + 7, E * 2.6);
+      if (pos !== 0 && pos !== 3) chord(t, tri, E * .55);
+    } else {
+      pluckBass(t, root + TR.bassPat[pos], E * .85);
+      if (pos === 0 && !intro) pad(t, tri, E * B);
+    }
+    // ударные
+    if (TR.drums === 'march') {
+      if (pos === 0 || pos === 4) kick(t);
+      if (pos === 2 || pos === 6) snare(t);
+      if (pos % 2 === 1) hat(t);
+      if (last && pos >= 5) snare(t + E / 2, .05);
+    } else if (TR.drums === 'chase') {
+      if (pos === 0 || pos === 3 || pos === 4 || pos === 6) kick(t);
+      if (pos === 2 || pos === 6) snare(t, .08);
+      hat(t); hat(t + E / 2);
+      if (last && pos >= 4) { snare(t + E / 2, .05); }
+    } else if (TR.drums === 'storm') {
+      if (pos === 0) timpani(t, root + 12);
+      if (pos === 3) timpani(t, root + 19, .15);
+      if (pos === 6) timpani(t, root + 12, .18);
+      if (pos === 4) snare(t, .07);
+      if (last && pos >= 4) { snare(t, .05); snare(t + E / 3, .05); snare(t + 2 * E / 3, .05); }   // дробь
+    } else {                                         // jig
+      if (pos === 0) kick(t);
+      if (pos === 3) brush(t);
+      if (pos === 1 || pos === 2 || pos === 4 || pos === 5) hat(t);
+    }
   }
   function sched(s, t) {
     if (cur === 'battle') { battleSched(s, t); return; }
@@ -2091,7 +2162,10 @@ const Music = (() => {
     while (next < AC.currentTime + .3) {
       sched(step, next);
       next += E;
-      if (++step >= (cur === 'battle' ? BSTEPS : STEPS)) { step = 0; loop++; }
+      if (++step >= (cur === 'battle' ? TR.steps : STEPS)) {
+        step = 0; loop++;
+        if (cur === 'battle' && loop >= 3) { pickTrack(true); E = TR.E; loop = 0; }   // долгий бой — следующий трек
+      }
     }
   }
   function startSea(level) {         // шум волн с медленным накатом
@@ -2120,7 +2194,8 @@ const Music = (() => {
       if (!name || !ensureAC()) return;
       on = true; cur = name;
       const battle = name === 'battle';
-      E = battle ? .23 : .2;
+      if (battle) pickTrack(false);
+      E = battle ? TR.E : .2;
       const a = AC;
       master = a.createGain();
       master.gain.setValueAtTime(0, a.currentTime);
